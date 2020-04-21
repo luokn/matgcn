@@ -3,16 +3,16 @@ import torch
 
 class Metrics:
 	def __init__(self):
-		self.total = {'abs': .0, 'sqr': .0, }
+		self.total = {}.fromkeys(['abs', 'sqr'], .0)
 		self.count = 0
 
-	def update(self, pred: torch.FloatTensor, y: torch.FloatTensor):
-		self.total['abs'] += torch.sum((pred - y).abs()).item()
-		self.total['sqr'] += torch.sum((pred - y) ** 2).item()
+	def update(self, pred, y):
+		self.total['abs'] += torch.abs(pred - y).sum().item()
+		self.total['sqr'] += torch.pow(pred - y, 2).sum().item()
 		self.count += pred.nelement()
 
 	def clear(self):
-		self.total = {'abs': .0, 'sqr': .0, }
+		self.total = {}.fromkeys(['abs', 'sqr'], .0)
 		self.count = 0
 
 	@property

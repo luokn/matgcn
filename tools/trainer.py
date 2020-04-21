@@ -16,7 +16,7 @@ from tools.model import make_matgcn
 class Trainer:
 	def __init__(self, conf: Config):
 		self.conf = conf
-		self.metrics, self.history = Metrics(), []
+		self.history = []
 		self.requires_move = conf.device_for_model != conf.device_for_data
 		# load
 		print('Loading data...')
@@ -42,9 +42,9 @@ class Trainer:
 		self.save()
 
 	def train_epoch(self):
-		total_loss = .0
+		total_loss, count = .0, 0
 		with tqdm(total=len(self.data_for_train), desc='TRAIN', unit='batches') as bar:
-			for i, (x, y) in enumerate(self.data_for_train):
+			for x, y in self.data_for_train:
 				if self.requires_move:
 					x, y = x.to(self.conf.device_for_model), y.to(self.conf.device_for_model)
 				self.optimizer.zero_grad()
@@ -53,33 +53,35 @@ class Trainer:
 				loss.backward()
 				self.optimizer.step()
 				# update statistics
-				total_loss += loss.item() / len(pred)
+				count += len(pred)
+				total_loss += loss.item()
 				# update progress bar
 				bar.update()
-				bar.set_postfix(loss=f'{total_loss / (i + 1):.2f}')
-		return {'loss': total_loss / len(self.data_for_train)}
+				bar.set_postfix(loss=f'{total_loss / count:.2f}')
+		return {'loss': total_loss / count}
 
 	@torch.no_grad()
 	def validate_epoch(self):
+		metrics = Metrics()
+		total_loss, count = .0, 0
 		self.matgcn.eval()
-		self.metrics.clear()
-		total_loss = .0
 		with tqdm(total=len(self.data_for_validate), desc='VALIDATE', unit='batches') as bar:
-			for i, (x, y) in enumerate(self.data_for_validate):
+			for x, y in self.data_for_validate:
 				if self.requires_move:
 					x, y = x.to(self.conf.device_for_model), y.to(self.conf.device_for_model)
 				pred = self.matgcn(x)
 				loss = self.criterion(pred, y)
 				# update statistics
-				total_loss += loss.item() / len(pred)
-				self.metrics.update(pred, y)
+				metrics.update(pred, y)
+				count += len(pred)
+				total_loss += loss.item()
 				# update progress bar
 				bar.update()
 				bar.set_postfix(**{
-					k: f'{v:.2f}' for k, v in self.metrics.status.items()
-				}, loss=f'{total_loss / (i + 1):.2f}')
+					k: f'{v:.2f}' for k, v in metrics.status.items()
+				}, loss=f'{total_loss / count:.2f}')
 		self.matgcn.train()
-		return {'loss': total_loss / len(self.data_for_validate), 'metrics': self.metrics.status}
+		return {'loss': total_loss / count, 'metrics': metrics.status}
 
 	def save(self, history=True, statistics=False, model=False):
 		if not os.path.exists(self.conf.saved_dir):
