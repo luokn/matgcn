@@ -1,7 +1,7 @@
 {
 	"lr": 0.001,
 	"epochs": 50,
-	"batch_size": 24,
+	"batch_size": 32,
 	"data_split": 0.8,
 	"adj_file": "data/pems04/distance.csv",
 	"data_file": "data/pems04/pems04.npz",
