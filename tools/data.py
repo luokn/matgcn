@@ -9,7 +9,7 @@ def generate_sequences(data, tp):
 	n_timesteps, n_vertices, n_channels = data.shape
 	n_sequences = n_timesteps - tp - 168 * tp
 	# generate
-	ranges = [(- i * tp, -i * tp + tp) for i in [1, 2, 3, 4, 24, 24 * 7]]
+	ranges = [(- i * tp, -i * tp + tp) for i in [1, 2, 3, 24, 24 * 7]]
 	Y = torch.zeros(n_sequences, n_vertices, tp, device=data.device)
 	X = torch.zeros(n_sequences, len(ranges), n_channels, n_vertices, tp, device=data.device)
 	for i, t in enumerate(range(168 * tp, n_timesteps - tp)):

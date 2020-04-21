@@ -1,8 +1,6 @@
 import json
 import sys
 
-import torch
-
 from tools.config import Config
 from tools.trainer import Trainer
 

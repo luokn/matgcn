@@ -25,7 +25,7 @@ def make_matgcn(conf: Config):
 				'tcn_dilations': [1, 2]
 			}
 		]
-	}] * 6
+	}] * 5
 	model = MATGCN(layers=layers, **mixin).to(conf.device_for_model)
 	for params in model.parameters(recurse=True):
 		if params.dim() > 1:
