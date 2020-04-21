@@ -1,0 +1,15 @@
+{
+	"lr": 0.001,
+	"epochs": 10,
+	"batch_size": 2,
+	"data_split": 0.8,
+	"adj_file": "data/debug/distance.csv",
+	"data_file": "data/debug/debug.npz",
+	"saved_dir": "saved/debug",
+	"n_vertices": 307,
+	"in_timesteps": 12,
+	"out_timesteps": 12,
+	"points_per_hour": 12,
+	"device_for_data": "cpu",
+	"device_for_model": "cuda:0"
+}
