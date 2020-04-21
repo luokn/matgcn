@@ -1,3 +1,7 @@
+from dataclasses import dataclass
+
+
+@dataclass
 class Config:
 	lr: float
 	epochs: int
@@ -12,7 +16,3 @@ class Config:
 	points_per_hour: int
 	device_for_data: str = 'cpu'
 	device_for_model: str = 'cpu'
-
-	def __init__(self, **kwargs):
-		for k, v in kwargs.items():
-			setattr(self, k, v)
