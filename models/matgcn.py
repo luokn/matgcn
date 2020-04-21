@@ -47,10 +47,8 @@ class TCNBlock(Module):
 			layers += [
 				weight_norm(Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation])),
 				ReLU(),
-				Dropout(.2),
 				weight_norm(Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation])),
 				ReLU(),
-				Dropout(.2)
 			]
 		self.layers = Sequential(*layers)
 
