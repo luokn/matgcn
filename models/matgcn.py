@@ -22,9 +22,9 @@ class Attention(Module):
 		return (att @ x_out).reshape_as(x) if self.requires_value else att
 
 
-class GCN(Module):
+class GCNBlock(Module):
 	def __init__(self, in_channels, out_channels, in_timesteps, A):
-		super(GCN, self).__init__()
+		super(GCNBlock, self).__init__()
 		self.A = A
 		self.W = Parameter(torch.zeros(in_channels, out_channels), requires_grad=True)
 		self.att = Attention(in_channels * in_timesteps, requires_value=False)
@@ -38,9 +38,9 @@ class GCN(Module):
 		return x_out.permute(1, 3, 2, 0)
 
 
-class TCN(Module):
+class TCNBlock(Module):
 	def __init__(self, in_channels, n_vertices, dilations):
-		super(TCN, self).__init__()
+		super(TCNBlock, self).__init__()
 		self.att = Attention(n_vertices * in_channels, requires_value=True)
 		layers = []
 		for dilation in dilations:
@@ -67,8 +67,8 @@ class MATGCNBlock(Module):
 		super(MATGCNBlock, self).__init__()
 		self.att = Attention(n_vertices * in_timesteps, requires_value=True)
 		self.res = Conv2d(in_channels, out_channels, kernel_size=1)
-		self.gcn = GCN(in_channels, out_channels, in_timesteps, kwargs['A'])
-		self.tcn = TCN(out_channels, n_vertices, tcn_dilations)
+		self.gcn = GCNBlock(in_channels, out_channels, in_timesteps, kwargs['A'])
+		self.tcn = TCNBlock(out_channels, n_vertices, tcn_dilations)
 		self.ln = LayerNorm(normalized_shape=out_channels)
 
 	def forward(self, x: FloatTensor):
