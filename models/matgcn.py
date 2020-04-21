@@ -102,9 +102,5 @@ class MATGCN(Module):
 		self.layers = ModuleList([MATGCNLayer(**layer, **kwargs) for layer in layers])
 		self.W = Parameter(torch.zeros(len(layers), n_vertices, out_timesteps), requires_grad=True)
 
-	# self.att_in = Attention(n_vertices * out_timesteps, requires_value=True)
-	# self.att_out = Attention(n_vertices * out_timesteps, requires_value=True)
-
 	def forward(self, X: FloatTensor):
-		# 混合通道注意力
 		return sum(map(lambda layer, x, w: layer(x) * w, self.layers, X.unbind(1), self.W.unbind(0)))
