@@ -44,11 +44,11 @@ class TCN(Module):
 		layers = []
 		for dilation in dilations:
 			layers += [
-				Conv2d(in_channels, in_channels, kernel_size=[1, 2],
-					   padding=[0, dilation // 2], dilation=[1, dilation]),
+				Conv2d(in_channels, in_channels, kernel_size=[1, 3],
+					   padding=[0, dilation], dilation=[1, dilation]),
 				ReLU(),
-				Conv2d(in_channels, in_channels, kernel_size=[1, 2],
-					   padding=[0, dilation // 2], dilation=[1, dilation]),
+				Conv2d(in_channels, in_channels, kernel_size=[1, 3],
+					   padding=[0, dilation], dilation=[1, dilation]),
 				ReLU(),
 			]
 		self.layers = Sequential(*layers)
