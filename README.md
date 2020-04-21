@@ -1,5 +1,5 @@
-## 毕业设计
+## 毕业设计-基于图卷积网络的交通流预测
 
-#### MATGCN: Muti-Attention Temporal and Graph Convolution Network
+### MATGCN: Multi-Attention Temporal and Graph Convolution Network for Traffic Flow Forecasting
 
 
