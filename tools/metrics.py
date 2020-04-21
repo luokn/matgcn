@@ -1,34 +1,23 @@
 import torch
 
 
-def mean_absolute_error(pred: torch.FloatTensor, y: torch.FloatTensor) -> float:
-	return torch.mean((pred - y).abs()).item()
-
-
-def mean_square_error(pred: torch.FloatTensor, y: torch.FloatTensor) -> float:
-	return torch.mean((pred - y) ** 2).item()
-
-
 class Metrics:
 	def __init__(self):
-		self.metrics = {
-			'MSE': mean_square_error,
-			'MAE': mean_absolute_error
-		}
-		self.total = {}.fromkeys(self.metrics.keys(), .0)
-		self.batch = 0
+		self.total = {'abs': .0, 'sqr': .0, }
+		self.count = 0
 
-	def update(self, pred, y):
-		for k, metric in self.metrics.items():
-			self.total[k] += metric(pred, y)
-		self.batch += 1
+	def update(self, pred: torch.FloatTensor, y: torch.FloatTensor):
+		self.total['abs'] += torch.sum((pred - y).abs()).item()
+		self.total['sqr'] += torch.sum((pred - y) ** 2).item()
+		self.count += pred.nelement()
 
 	def clear(self):
-		self.total = {}.fromkeys(self.metrics.keys(), .0)
-		self.batch = 0
+		self.total = {'abs': .0, 'sqr': .0, }
+		self.count = 0
 
 	@property
 	def status(self):
-		average = {k: v / self.batch for k, v in self.total.items()}
-		average['RMSE'] = average['MSE'] ** .5
-		return average
+		return {
+			'MAE': self.total['abs'] / self.count,
+			'RMSE': (self.total['sqr'] / self.count) ** .5
+		}
