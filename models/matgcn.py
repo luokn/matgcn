@@ -2,7 +2,8 @@ import math
 
 import torch
 from torch import FloatTensor
-from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleList, ReLU
+from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleList, ReLU, Dropout
+from torch.nn.utils import weight_norm
 
 
 class Attention(Module):
@@ -44,12 +45,12 @@ class TCN(Module):
 		layers = []
 		for dilation in dilations:
 			layers += [
-				Conv2d(in_channels, in_channels, kernel_size=[1, 3],
-					   padding=[0, dilation], dilation=[1, dilation]),
+				weight_norm(Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation])),
 				ReLU(),
-				Conv2d(in_channels, in_channels, kernel_size=[1, 3],
-					   padding=[0, dilation], dilation=[1, dilation]),
+				Dropout(.2),
+				weight_norm(Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation])),
 				ReLU(),
+				Dropout(.2)
 			]
 		self.layers = Sequential(*layers)
 
