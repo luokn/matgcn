@@ -98,4 +98,4 @@ class Trainer:
 			torch.save(self.statistics, f'{saved_dir}/statistics.pth')
 		if model:
 			# save model
-			torch.save({'model': self.matgcn.state_dict()}, f'{saved_dir}/model.pkl')
+			torch.save(self.matgcn, f'{saved_dir}/model.pkl')

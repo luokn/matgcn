@@ -3,7 +3,6 @@ import math
 import torch
 from torch import FloatTensor
 from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleList, ReLU, Dropout
-from torch.nn.utils import weight_norm
 
 
 class Attention(Module):
@@ -45,9 +44,9 @@ class TCNBlock(Module):
 		seq = []
 		for dilation in dilations:
 			seq += [
-				weight_norm(Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation])),
+				Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation]),
 				ReLU(),
-				weight_norm(Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation])),
+				Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation]),
 				ReLU(),
 			]
 		self.seq = Sequential(*seq)
