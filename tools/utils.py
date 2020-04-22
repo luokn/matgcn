@@ -32,7 +32,7 @@ def log_to_file(file, **kwargs):
 
 
 def save_model(file, model):
-	torch.save(model, file)
+	torch.save(model.state_dict(), file)
 
 
 def save_history(file, history):
