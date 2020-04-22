@@ -31,14 +31,14 @@ def log_to_file(file, **kwargs):
 		f.write('\n')
 
 
-def save_model(file, model):
+def save_model(model, file):
 	torch.save(model.state_dict(), file)
 
 
-def save_history(file, history):
+def save_history(history, file):
 	with open(file, 'w') as f:
 		f.write(json.dumps(history))
 
 
-def save_statistics(file, statistics):
+def save_statistics(statistics, file):
 	torch.save(statistics, file)
