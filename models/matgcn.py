@@ -42,41 +42,40 @@ class TCNBlock(Module):
 	def __init__(self, in_channels, n_vertices, dilations):
 		super(TCNBlock, self).__init__()
 		self.att = Attention(n_vertices * in_channels, requires_value=True)
-		layers = []
+		seq = []
 		for dilation in dilations:
-			layers += [
+			seq += [
 				weight_norm(Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation])),
 				ReLU(),
 				weight_norm(Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation])),
 				ReLU(),
 			]
-		self.layers = Sequential(*layers)
+		self.seq = Sequential(*seq)
 
 	def forward(self, x: FloatTensor):
 		# In : B * C * V * T
 		# Out: B * C * V * T
 		x_out = self.att(x.transpose(1, 3))
-		x_out = self.layers(x_out.transpose(1, 3))
+		x_out = self.seq(x_out.transpose(1, 3))
 		return x_out
 
 
 class MATGCNBlock(Module):
 	def __init__(self, in_channels, out_channels, in_timesteps, n_vertices, tcn_dilations, **kwargs):
 		super(MATGCNBlock, self).__init__()
-		self.att = Attention(n_vertices * in_timesteps, requires_value=True)
+		self.seq = Sequential(
+			Attention(n_vertices * in_timesteps, requires_value=True),
+			GCNBlock(in_channels, out_channels, in_timesteps, kwargs['A']),
+			TCNBlock(out_channels, n_vertices, tcn_dilations),
+			Dropout(.2)
+		)
 		self.res = Conv2d(in_channels, out_channels, kernel_size=1)
-		self.gcn = GCNBlock(in_channels, out_channels, in_timesteps, kwargs['A'])
-		self.tcn = TCNBlock(out_channels, n_vertices, tcn_dilations)
 		self.ln = LayerNorm(normalized_shape=out_channels)
 
 	def forward(self, x: FloatTensor):
 		# In : B * V * C_i * T_i
 		# Out: B * V * C_o * T_o
-		x_out = self.att(x)
-		x_out = self.gcn(x_out)
-		x_out = self.tcn(x_out)
-		x_out = torch.dropout(x_out, 0.2, self.training)
-		x_out += self.res(x)
+		x_out = self.seq(x) + self.res(x)
 		x_out = x_out.relu_().transpose(1, 3)
 		return self.ln(x_out).transpose(1, 3)
 
