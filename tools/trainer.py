@@ -44,7 +44,7 @@ class Trainer:
 				'validate': self.validate_epoch(epoch)
 			})
 			MAE = self.history[-1]['validate']['metrics']['MAE']
-			if epoch > int(0.2 * self.conf.epochs) and MAE < best:
+			if epoch >= int(.2 * self.conf.epochs) and MAE < best:
 				save_model(self.matgcn, f'{self.saved_dir}/model-{MAE:.2f}.pkl')
 				best = MAE
 		save_history(self.history, f'{self.saved_dir}/history.json')
