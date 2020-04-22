@@ -1,3 +1,4 @@
+import json
 from functools import partial
 
 import torch
@@ -9,7 +10,7 @@ from tools.config import Config
 from tools.metrics import Metrics
 from tools.model import make_matgcn
 from tools.data import make_loaders
-from tools.utils import log_to_file, make_saved_dir, save_model, save_history
+from tools.utils import log_to_file, make_saved_dir
 
 
 class Trainer:
@@ -25,8 +26,8 @@ class Trainer:
 		data_loaders, statistics = make_loaders(conf)
 		self.data_for_train = data_loaders['train']
 		self.data_for_validate = data_loaders['validate']
-		# save_statistics(statistics, f'{self.saved_dir}/statistics.pth')
-		# creat
+		# torch.save(statistics, f'{self.saved_dir}/statistics.pth')
+		# create
 		print('Creating model...')
 		self.matgcn = make_matgcn(conf)
 		self.optimizer = Adam(self.matgcn.parameters(), lr=conf.lr)
@@ -45,9 +46,9 @@ class Trainer:
 			})
 			MAE = self.history[-1]['validate']['metrics']['MAE']
 			if epoch >= int(.2 * self.conf.epochs) and MAE < best:
-				save_model(self.matgcn, f'{self.saved_dir}/model-{MAE:.2f}.pkl')
+				torch.save(self.matgcn, f'{self.saved_dir}/model-{MAE:.2f}.pkl')
 				best = MAE
-		save_history(self.history, f'{self.saved_dir}/history.json')
+		open(f'{self.saved_dir}/history.json', 'w').write(json.dumps(self.history))
 
 	def train_epoch(self, epoch):
 		total_loss, count = .0, 0
