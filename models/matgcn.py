@@ -66,7 +66,6 @@ class MATGCNBlock(Module):
 			Attention(n_vertices * in_timesteps, requires_value=True),
 			GCNBlock(in_channels, out_channels, in_timesteps, kwargs['A']),
 			TCNBlock(out_channels, n_vertices, tcn_dilations),
-			Dropout(.2)
 		)
 		self.res = Conv2d(in_channels, out_channels, kernel_size=1)
 		self.ln = LayerNorm(normalized_shape=out_channels)
