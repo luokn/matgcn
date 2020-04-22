@@ -75,6 +75,7 @@ class MATGCNBlock(Module):
 		x_out = self.att(x)
 		x_out = self.gcn(x_out)
 		x_out = self.tcn(x_out)
+		x_out = torch.dropout(x_out, 0.2, self.training)
 		x_out += self.res(x)
 		x_out = x_out.relu_().transpose(1, 3)
 		return self.ln(x_out).transpose(1, 3)
@@ -84,8 +85,7 @@ class MATGCNLayer(Module):
 	def __init__(self, blocks, **kwargs):
 		super(MATGCNLayer, self).__init__()
 		self.blocks = Sequential(*[MATGCNBlock(**block, **kwargs) for block in blocks])
-		self.fc = Conv2d(kwargs['in_timesteps'], kwargs['out_timesteps'],
-						 kernel_size=[1, blocks[-1]['out_channels']])
+		self.fc = Conv2d(kwargs['in_timesteps'], kwargs['out_timesteps'], [1, blocks[-1]['out_channels']])
 
 	def forward(self, x: FloatTensor):
 		# In : B * C_i * V * T_i
