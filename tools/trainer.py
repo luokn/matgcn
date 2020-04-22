@@ -1,6 +1,3 @@
-import json
-import os
-from datetime import datetime
 from functools import partial
 
 import torch
@@ -10,9 +7,9 @@ from tqdm import tqdm
 
 from tools.config import Config
 from tools.metrics import Metrics
-from tools.data import make_loaders
 from tools.model import make_matgcn
-from tools.utils import log_to_file, make_saved_dir, save_statistics, save_model, save_history
+from tools.data import make_loaders
+from tools.utils import log_to_file, make_saved_dir, save_model, save_history
 
 
 class Trainer:
