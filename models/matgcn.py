@@ -41,21 +41,19 @@ class TCNBlock(Module):
 	def __init__(self, in_channels, n_vertices, dilations):
 		super(TCNBlock, self).__init__()
 		self.att = Attention(n_vertices * in_channels, requires_value=True)
-		seq = []
-		for dilation in dilations:
-			seq += [
-				Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation]),
-				ReLU(),
-				Conv2d(in_channels, in_channels, [1, 3], padding=[0, dilation], dilation=[1, dilation]),
-				ReLU(),
-			]
-		self.seq = Sequential(*seq)
+		self.dilations = dilations
+		self.convs = ModuleList([
+			Conv2d(in_channels, in_channels, [1, 2], padding=[0, dilation], dilation=[1, dilation])
+			for dilation in dilations
+		])
 
 	def forward(self, x: FloatTensor):
 		# In : B * C * V * T
 		# Out: B * C * V * T
-		x_out = self.att(x.transpose(1, 3))
-		x_out = self.seq(x_out.transpose(1, 3))
+		x_out = self.att(x.transpose(1, 3)).transpose(1, 3)
+		for conv, dilation in zip(self.convs, self.dilations):
+			x_out = conv(x_out)
+			x_out = torch.relu(x_out[..., :-dilation])
 		return x_out
 
 
