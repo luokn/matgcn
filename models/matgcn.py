@@ -104,6 +104,6 @@ class MATGCN(Module):
 			# [B * N * T] * [N * T] * [B * 1 * 1] => [B * N * T]
 			return layer(x) * w * gate
 
-		G = torch.relu(self.h_ebd(H) + self.d_ebd(D)).softmax(dim=1)  # [B * n_layers]
+		G = torch.softmax(self.h_ebd(H) + self.d_ebd(D), dim=-1)  # [B * n_layers]
 		G = G.unsqueeze(-1).unsqueeze(-1)  # [B * n_layers * 1 * 1]
 		return sum(map(gate_fusion, self.layers, self.W, X.unbind(1), G.unbind(1)))
