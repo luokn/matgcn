@@ -17,12 +17,12 @@ def make_matgcn(conf: Config):
 			{
 				'in_channels': 3,
 				'out_channels': 64,
-				'tcn_dilations': [1, 2]
+				'tcn_dilations': [1, 1]
 			},
 			{
 				'in_channels': 64,
 				'out_channels': 64,
-				'tcn_dilations': [2, 4]
+				'tcn_dilations': [2, 2]
 			}
 		]
 	}] * 5
