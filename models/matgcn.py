@@ -93,17 +93,15 @@ class MATGCNLayer(Module):
 class MATGCN(Module):
 	def __init__(self, layers, **kwargs):
 		super(MATGCN, self).__init__()
-		n_vertices, out_timesteps = kwargs['n_vertices'], kwargs['out_timesteps']
+		self.n_vertices, out_timesteps = kwargs['n_vertices'], kwargs['out_timesteps']
+		self.d_ebd = Embedding(7, len(layers) * self.n_vertices * out_timesteps)
+		self.h_ebd = Embedding(24, len(layers) * self.n_vertices * out_timesteps)
 		self.layers = ModuleList([MATGCNLayer(**layer, **kwargs) for layer in layers])
-		self.h_ebd = Embedding(24, len(layers))
-		self.d_ebd = Embedding(7, len(layers))
-		self.W = Parameter(torch.zeros(len(layers), n_vertices, out_timesteps), requires_grad=True)
 
 	def forward(self, X: FloatTensor, H: LongTensor, D: LongTensor):
-		def gate_fusion(layer, w, x, gate):
-			# [B * N * T] * [N * T] * [B * 1 * 1] => [B * N * T]
-			return layer(x) * w * gate
+		def gate_fusion(layer, x, gate):
+			return layer(x) * gate
 
-		G = torch.softmax(self.h_ebd(H) + self.d_ebd(D), dim=-1)  # [B * n_layers]
-		G = G.unsqueeze(-1).unsqueeze(-1)  # [B * n_layers * 1 * 1]
-		return sum(map(gate_fusion, self.layers, self.W, X.unbind(1), G.unbind(1)))
+		G = self.h_ebd(H) + self.d_ebd(D)
+		G = G.reshape(G.shape[0], len(self.layers), self.n_vertices, -1)
+		return sum(map(gate_fusion, self.layers, X.unbind(1), G.unbind(1)))
