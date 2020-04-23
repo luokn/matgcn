@@ -19,13 +19,13 @@ class Trainer:
 		self.history = []
 		self.requires_move = conf.device_for_model != conf.device_for_data
 		self.saved_dir = make_saved_dir(conf.saved_dir)
-		self.log_for_train = partial(log_to_file, f'{self.saved_dir}/train.log')
-		self.log_for_validate = partial(log_to_file, f'{self.saved_dir}/validate.log')
+		self.train_log = partial(log_to_file, f'{self.saved_dir}/train.log')
+		self.validate_log = partial(log_to_file, f'{self.saved_dir}/validate.log')
 		# load
 		print('Loading data...')
 		data_loaders, statistics = make_loaders(conf)
-		self.data_for_train = data_loaders['train']
-		self.data_for_validate = data_loaders['validate']
+		self.train_loader = data_loaders['train']
+		self.validate_loader = data_loaders['validate']
 		# torch.save(statistics, f'{self.saved_dir}/statistics.pth')
 		# create
 		print('Creating model...')
@@ -52,8 +52,8 @@ class Trainer:
 
 	def train_epoch(self, epoch):
 		total_loss, count = .0, 0
-		with tqdm(total=len(self.data_for_train), desc='TRAIN', unit='batches') as bar:
-			for b, (x, y) in enumerate(self.data_for_train):
+		with tqdm(total=len(self.train_loader), desc='TRAIN', unit='batches') as bar:
+			for b, (x, y) in enumerate(self.train_loader):
 				if self.requires_move:
 					x, y = x.to(self.conf.device_for_model), y.to(self.conf.device_for_model)
 				self.optimizer.zero_grad()
@@ -68,7 +68,7 @@ class Trainer:
 				bar.update()
 				bar.set_postfix(loss=f'{total_loss / count:.2f}')
 				# log to file
-				self.log_for_train(epoch=epoch, batch=b, loss=loss.item())
+				self.train_log(epoch=epoch, batch=b, loss=loss.item())
 		return {'loss': total_loss / count}
 
 	@torch.no_grad()
@@ -76,8 +76,8 @@ class Trainer:
 		metrics = Metrics()
 		total_loss, count = .0, 0
 		self.matgcn.eval()
-		with tqdm(total=len(self.data_for_validate), desc='VALIDATE', unit='batches') as bar:
-			for b, (x, y) in enumerate(self.data_for_validate):
+		with tqdm(total=len(self.validate_loader), desc='VALIDATE', unit='batches') as bar:
+			for b, (x, y) in enumerate(self.validate_loader):
 				if self.requires_move:
 					x, y = x.to(self.conf.device_for_model), y.to(self.conf.device_for_model)
 				pred = self.matgcn(x)
@@ -91,6 +91,6 @@ class Trainer:
 				bar.set_postfix(**{
 					k: f'{v:.2f}' for k, v in metrics.status.items()
 				}, loss=f'{total_loss / count:.2f}')
-				self.log_for_validate(epoch=epoch, batch=b, loss=loss.item(), **metrics.status)
+				self.validate_log(epoch=epoch, batch=b, loss=loss.item(), **metrics.status)
 		self.matgcn.train()
 		return {'loss': total_loss / count, 'metrics': metrics.status}
