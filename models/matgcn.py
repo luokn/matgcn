@@ -93,15 +93,12 @@ class MATGCNLayer(Module):
 class MATGCN(Module):
 	def __init__(self, layers, **kwargs):
 		super(MATGCN, self).__init__()
-		self.n_vertices, out_timesteps = kwargs['n_vertices'], kwargs['out_timesteps']
-		self.d_ebd = Embedding(7, len(layers) * self.n_vertices * out_timesteps)
-		self.h_ebd = Embedding(24, len(layers) * self.n_vertices * out_timesteps)
+		self.n_vertices, self.out_timesteps = kwargs['n_vertices'], kwargs['out_timesteps']
+		self.d_ebd = Embedding(7, len(layers) * self.n_vertices * self.out_timesteps)
+		self.h_ebd = Embedding(24, len(layers) * self.n_vertices * self.out_timesteps)
 		self.layers = ModuleList([MATGCNLayer(**layer, **kwargs) for layer in layers])
 
 	def forward(self, X: FloatTensor, H: LongTensor, D: LongTensor):
-		def gate_fusion(layer, x, gate):
-			return layer(x) * gate
-
 		G = self.h_ebd(H) + self.d_ebd(D)
-		G = G.reshape(G.shape[0], len(self.layers), self.n_vertices, -1)
-		return sum(map(gate_fusion, self.layers, X.unbind(1), G.unbind(1)))
+		G = G.reshape(G.shape[0], len(self.layers), self.n_vertices, self.out_timesteps)
+		return sum(map(lambda layer, x, gate: layer(x) * gate, self.layers, X.unbind(1), G.unbind(1)))
