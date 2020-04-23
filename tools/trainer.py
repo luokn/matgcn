@@ -53,11 +53,11 @@ class Trainer:
 	def train_epoch(self, epoch):
 		total_loss, count = .0, 0
 		with tqdm(total=len(self.train_loader), desc='TRAIN', unit='batches') as bar:
-			for b, (x, y) in enumerate(self.train_loader):
+			for b, (x, h, d, y) in enumerate(self.train_loader):
 				if self.requires_move:
-					x, y = x.to(self.conf.device_for_model), y.to(self.conf.device_for_model)
+					x, h, d, y = [t.to(self.conf.device_for_model) for t in [x, h, d, y]]
 				self.optimizer.zero_grad()
-				pred = self.matgcn(x)
+				pred = self.matgcn(x, h, d)
 				loss = self.criterion(pred, y)
 				loss.backward()
 				self.optimizer.step()
@@ -77,10 +77,10 @@ class Trainer:
 		total_loss, count = .0, 0
 		self.matgcn.eval()
 		with tqdm(total=len(self.validate_loader), desc='VALIDATE', unit='batches') as bar:
-			for b, (x, y) in enumerate(self.validate_loader):
+			for b, (x, h, d, y) in enumerate(self.validate_loader):
 				if self.requires_move:
-					x, y = x.to(self.conf.device_for_model), y.to(self.conf.device_for_model)
-				pred = self.matgcn(x)
+					x, h, d, y = [t.to(self.conf.device_for_model) for t in [x, h, d, y]]
+				pred = self.matgcn(x, h, d)
 				loss = self.criterion(pred, y)
 				# update statistics
 				metrics.update(pred, y)

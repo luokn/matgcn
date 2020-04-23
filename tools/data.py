@@ -17,7 +17,9 @@ def generate_sequences(data, tp):
 			data[t + start:t + end].transpose(0, 2) for start, end in ranges
 		], dim=0, out=X[i])
 		Y[i] = data[t:t + tp, :, 0].T
-	return X, Y
+	T = torch.arange(n_sequences, dtype=torch.long, device=data.device) // tp
+	H, D = T % 24, (T // 24) % 7
+	return X, H, D, Y
 
 
 def normalize_sequences(x, split):
@@ -30,11 +32,11 @@ def normalize_sequences(x, split):
 
 def make_loaders(conf: Config):
 	data = torch.from_numpy(numpy.load(conf.data_file)['data']).to(conf.device_for_data)
-	X, Y = generate_sequences(data.float(), conf.points_per_hour)
+	X, H, D, Y = generate_sequences(data.float(), conf.points_per_hour)
 	split = int(len(Y) * conf.data_split)
 	statistics = normalize_sequences(X, split)
-	dataset1 = TensorDataset(X[:split], Y[:split])  # for train
-	dataset2 = TensorDataset(X[split:], Y[split:])  # for validate
+	dataset1 = TensorDataset(X[:split], H[:split], D[:split], Y[:split])  # for train
+	dataset2 = TensorDataset(X[split:], H[split:], D[split:], Y[split:])  # for validate
 	data_loaders = {
 		"train": DataLoader(dataset1, batch_size=conf.batch_size, shuffle=True),
 		"validate": DataLoader(dataset2, batch_size=conf.batch_size, shuffle=True)
