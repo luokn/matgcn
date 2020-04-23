@@ -1,7 +1,7 @@
 {
 	"lr": 0.001,
 	"epochs": 80,
-	"batch_size": 32,
+	"batch_size": 48,
 	"data_split": 0.8,
 	"adj_file": "data/pems04/distance.csv",
 	"data_file": "data/pems04/pems04.npz",
@@ -10,6 +10,6 @@
 	"in_timesteps": 12,
 	"out_timesteps": 12,
 	"points_per_hour": 12,
-	"device_for_data": "cuda:0",
+	"device_for_data": "cpu",
 	"device_for_model": "cuda:0"
 }
