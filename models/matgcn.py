@@ -111,10 +111,10 @@ class MATGCN(Module):
 
 	def forward(self, X: FloatTensor, H: LongTensor, D: LongTensor):
 		"""
-		:param X: [B, L, C_i, N, T_i]
+		:param X: [B, L, C, N, T_i]
 		:param H: [B]
 		:param D: [B]
-		:return:
+		:return: [B, N, T_o]
 		"""
 		G = self.h_embed(H) + self.d_embed(D)  # => [(B * L * N * T_o)]
 		G = G.view(len(G), len(self.layers), self.n_nodes, -1)  # => [B * L * N * T_o]
