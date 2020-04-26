@@ -2,7 +2,7 @@ import math
 
 import torch
 from torch import FloatTensor, LongTensor
-from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleList, Embedding, ReLU, Dropout
+from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleList, Embedding
 
 
 class Attention(Module):
@@ -14,11 +14,14 @@ class Attention(Module):
 		self.W2 = Parameter(torch.zeros(10, dk), requires_grad=True)
 
 	def forward(self, x: FloatTensor):
-		x_out = x.reshape(*x.shape[:2], -1)
-		# [B * A * Dk] @ [Dk * Dk] @ [B * Dk * A] => [B * A * A]
-		att = x_out @ self.W1 @ self.W2 @ x_out.transpose(1, 2)
-		att = torch.softmax(att / self.sqrt_dk, dim=-1)
-		return (att @ x_out).reshape_as(x) if self.requires_value else att
+		"""
+		:param x: [B, A, ...]
+		:return: [B, A, ...] or [B, A, A]
+		"""
+		x_out = x.reshape(*x.shape[:2], -1)  # => [B, A, D_k]
+		A = x_out @ self.W1 @ self.W2 @ x_out.transpose(1, 2)  # => [B, A, A]
+		A = torch.softmax(A / self.sqrt_dk, dim=-1)  # => [B, A, A]
+		return (A @ x_out).reshape_as(x) if self.requires_value else A  # => [B, A, ...] or [B, A, A]
 
 
 class GCNBlock(Module):
@@ -29,18 +32,20 @@ class GCNBlock(Module):
 		self.att = Attention(in_channels * in_timesteps, requires_value=False)
 
 	def forward(self, x: FloatTensor):
-		# In : B * C_i * V * T
-		# Out: B * C_o * V * T
-		att = self.att(x.transpose(1, 2))  # => [B * V * V]
-		# [B * V * V] @ [T * B * V * C_i] @ [C_i * C_o] => [T * B * V * C_o]
-		x_out = (att * self.A) @ x.permute(3, 0, 2, 1) @ self.W
-		return x_out.permute(1, 3, 2, 0)
+		"""
+		:param x: [B, C_i, N, T]
+		:return: [B, C_o, N, T]
+		"""
+		A = self.att(x.transpose(1, 2)) * self.A  # => [B, N, N]
+		# [B, N, N] @ [T, B, N, C_i] @ [C_i, C_o]
+		x_out = A @ x.permute(3, 0, 2, 1) @ self.W  # => [T, B, N, C_o]
+		return x_out.permute(1, 3, 2, 0)  # => [B, C_o, N, T]
 
 
 class TCNBlock(Module):
-	def __init__(self, in_channels, n_vertices, dilations):
+	def __init__(self, in_channels, n_nodes, dilations):
 		super(TCNBlock, self).__init__()
-		self.att = Attention(n_vertices * in_channels, requires_value=True)
+		self.att = Attention(n_nodes * in_channels, requires_value=True)
 		self.dilations = dilations
 		self.convs = ModuleList([
 			Conv2d(in_channels, in_channels, [1, 2], padding=[0, dilation], dilation=[1, dilation])
@@ -48,8 +53,10 @@ class TCNBlock(Module):
 		])
 
 	def forward(self, x: FloatTensor):
-		# In : B * C * V * T
-		# Out: B * C * V * T
+		"""
+		:param x: [B, C, N, T]
+		:return: [B, C, N, T]
+		"""
 		x_out = self.att(x.transpose(1, 3)).transpose(1, 3)
 		for conv, dilation in zip(self.convs, self.dilations):
 			x_out = conv(x_out)
@@ -58,22 +65,24 @@ class TCNBlock(Module):
 
 
 class MATGCNBlock(Module):
-	def __init__(self, in_channels, out_channels, in_timesteps, n_vertices, tcn_dilations, **kwargs):
+	def __init__(self, in_channels, out_channels, in_timesteps, n_nodes, tcn_dilations, **kwargs):
 		super(MATGCNBlock, self).__init__()
 		self.seq = Sequential(
-			Attention(n_vertices * in_timesteps, requires_value=True),
+			Attention(n_nodes * in_timesteps, requires_value=True),
 			GCNBlock(in_channels, out_channels, in_timesteps, kwargs['A']),
-			TCNBlock(out_channels, n_vertices, tcn_dilations),
+			TCNBlock(out_channels, n_nodes, tcn_dilations),
 		)
 		self.res = Conv2d(in_channels, out_channels, kernel_size=1)
 		self.ln = LayerNorm(normalized_shape=out_channels)
 
 	def forward(self, x: FloatTensor):
-		# In : B * V * C_i * T_i
-		# Out: B * V * C_o * T_o
-		x_out = self.seq(x) + self.res(x)
-		x_out = x_out.relu_().transpose(1, 3)
-		return self.ln(x_out).transpose(1, 3)
+		"""
+		:param x: [B, C_i, N, T_i]
+		:return: [B, C_o, N, T_o]
+		"""
+		x_out = self.seq(x) + self.res(x)  # => [B, C_o, N, T_o]
+		x_out = x_out.relu_().transpose(1, 3)  # => [B, T_o, N, C_o]
+		return self.ln(x_out).transpose(1, 3)  # => [B, T_o, N, C_o]
 
 
 class MATGCNLayer(Module):
@@ -83,22 +92,30 @@ class MATGCNLayer(Module):
 		self.fc = Conv2d(kwargs['in_timesteps'], kwargs['out_timesteps'], [1, blocks[-1]['out_channels']])
 
 	def forward(self, x: FloatTensor):
-		# In : B * C_i * V * T_i
-		# Out: B * C_o * V * T_o
-		x = self.blocks(x)
-		x = self.fc(x.transpose(1, 3))  # => (B * T_o * V * 1)
-		return x[..., 0].transpose(1, 2)
+		"""
+		:param x: [B, C_i, N, T_i]
+		:return: [B, C_o, N, T_o]
+		"""
+		x = self.blocks(x)  # => [B, C_o, N, T_o]
+		x = self.fc(x.transpose(1, 3))  # => [B, T_o, N, 1]
+		return x[..., 0].transpose(1, 2)  # => [B, N, T_o]
 
 
 class MATGCN(Module):
 	def __init__(self, layers, **kwargs):
 		super(MATGCN, self).__init__()
-		self.n_vertices, self.out_timesteps = kwargs['n_vertices'], kwargs['out_timesteps']
-		self.d_ebd = Embedding(7, len(layers) * self.n_vertices * self.out_timesteps)
-		self.h_ebd = Embedding(24, len(layers) * self.n_vertices * self.out_timesteps)
+		self.n_nodes = kwargs['n_nodes']
 		self.layers = ModuleList([MATGCNLayer(**layer, **kwargs) for layer in layers])
+		self.h_embed = Embedding(24, len(layers) * self.n_nodes * kwargs['out_timesteps'])
+		self.d_embed = Embedding(7, len(layers) * self.n_nodes * kwargs['out_timesteps'])
 
 	def forward(self, X: FloatTensor, H: LongTensor, D: LongTensor):
-		G = self.h_ebd(H) + self.d_ebd(D)
-		G = G.reshape(G.shape[0], len(self.layers), self.n_vertices, self.out_timesteps)
+		"""
+		:param X: [B, L, C_i, N, T_i]
+		:param H: [B]
+		:param D: [B]
+		:return:
+		"""
+		G = self.h_embed(H) + self.d_embed(D)  # => [(B * L * N * T_o)]
+		G = G.view(len(G), len(self.layers), self.n_nodes, -1)  # => [B * L * N * T_o]
 		return sum(map(lambda layer, x, gate: layer(x) * gate, self.layers, X.unbind(1), G.unbind(1)))
