@@ -25,7 +25,7 @@ class Trainer:
 		loaders, statistics = load_data(conf.data_file, conf.batch_size, conf.data_split,
 										conf.points_per_hour, conf.device_for_data)
 		self.train_loader, self.validate_loader = loaders
-		# torch.save(statistics, f'{self.saved_dir}/statistics.pth')
+		torch.save(statistics, f'{self.saved_dir}/statistics.pth')
 		# create
 		self.model = matgcn(conf.adj_file, conf.n_nodes, conf.out_timesteps,
 							conf.points_per_hour, conf.device_for_model)
