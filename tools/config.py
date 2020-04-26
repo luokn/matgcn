@@ -10,8 +10,7 @@ class Config:
 	adj_file: str
 	data_file: str
 	saved_dir: str
-	n_vertices: int
-	in_timesteps: int
+	n_nodes: int
 	out_timesteps: int
 	points_per_hour: int
 	device_for_data: str = 'cpu'

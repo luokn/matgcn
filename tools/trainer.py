@@ -7,9 +7,9 @@ from torch.optim import Adam
 from tqdm import tqdm
 
 from tools.config import Config
+from tools.data import load_data
 from tools.metrics import Metrics
-from tools.model import make_matgcn
-from tools.data import make_loaders
+from tools.model import matgcn
 from tools.utils import log_to_file, make_saved_dir
 
 
@@ -21,21 +21,21 @@ class Trainer:
 		self.saved_dir = make_saved_dir(conf.saved_dir)
 		self.train_log = partial(log_to_file, f'{self.saved_dir}/train.log')
 		self.validate_log = partial(log_to_file, f'{self.saved_dir}/validate.log')
+		print('Loading...')
 		# load
-		print('Loading data...')
-		data_loaders, statistics = make_loaders(conf)
-		self.train_loader = data_loaders['train']
-		self.validate_loader = data_loaders['validate']
+		loaders, statistics = load_data(conf.data_file, conf.batch_size, conf.data_split,
+										conf.points_per_hour, conf.device_for_data)
+		self.train_loader, self.validate_loader = loaders
 		# torch.save(statistics, f'{self.saved_dir}/statistics.pth')
 		# create
-		print('Creating model...')
-		self.matgcn = make_matgcn(conf)
-		self.optimizer = Adam(self.matgcn.parameters(), lr=conf.lr)
+		self.model = matgcn(conf.adj_file, conf.n_nodes, conf.out_timesteps,
+							conf.points_per_hour, conf.device_for_model)
+		self.optimizer = Adam(self.model.parameters(), lr=conf.lr)
 		self.criterion = MSELoss().to(conf.device_for_model)
 
-	def run(self):
-		# train
+	def fit(self):
 		print('Training...')
+		# train
 		best = float('inf')
 		self.history.clear()
 		for epoch in range(self.conf.epochs):
@@ -46,7 +46,7 @@ class Trainer:
 			})
 			MAE = self.history[-1]['validate']['metrics']['MAE']
 			if epoch >= int(.2 * self.conf.epochs) and MAE < best:
-				torch.save(self.matgcn, f'{self.saved_dir}/model-{MAE:.2f}.pkl')
+				torch.save(self.model, f'{self.saved_dir}/model-{MAE:.2f}.pkl')
 				best = MAE
 		open(f'{self.saved_dir}/history.json', 'w').write(json.dumps(self.history))
 
@@ -57,7 +57,7 @@ class Trainer:
 				if self.requires_move:
 					x, h, d, y = [t.to(self.conf.device_for_model) for t in [x, h, d, y]]
 				self.optimizer.zero_grad()
-				pred = self.matgcn(x, h, d)
+				pred = self.model(x, h, d)
 				loss = self.criterion(pred, y)
 				loss.backward()
 				self.optimizer.step()
@@ -75,12 +75,12 @@ class Trainer:
 	def validate_epoch(self, epoch):
 		metrics = Metrics()
 		total_loss, count = .0, 0
-		self.matgcn.eval()
+		self.model.eval()
 		with tqdm(total=len(self.validate_loader), desc='VALIDATE', unit='batches') as bar:
 			for b, (x, h, d, y) in enumerate(self.validate_loader):
 				if self.requires_move:
 					x, h, d, y = [t.to(self.conf.device_for_model) for t in [x, h, d, y]]
-				pred = self.matgcn(x, h, d)
+				pred = self.model(x, h, d)
 				loss = self.criterion(pred, y)
 				# update statistics
 				metrics.update(pred, y)
@@ -92,5 +92,5 @@ class Trainer:
 					k: f'{v:.2f}' for k, v in metrics.status.items()
 				}, loss=f'{total_loss / count:.2f}')
 				self.validate_log(epoch=epoch, batch=b, loss=loss.item(), **metrics.status)
-		self.matgcn.train()
+		self.model.train()
 		return {'loss': total_loss / count, 'metrics': metrics.status}

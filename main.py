@@ -5,6 +5,6 @@ from tools.config import Config
 from tools.trainer import Trainer
 
 if __name__ == '__main__':
-	file = sys.argv[1] if len(sys.argv) >= 2 else 'debug'
-	conf = json.loads(open(f'./config/{file}.json').read())
-	Trainer(Config(**conf)).run()
+	assert len(sys.argv) >= 2
+	conf = json.loads(open(f'./config/{sys.argv[1]}.json').read())
+	Trainer(Config(**conf)).fit()
