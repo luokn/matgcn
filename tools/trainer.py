@@ -16,7 +16,6 @@ from tools.utils import log_to_file, make_saved_dir
 class Trainer:
 	def __init__(self, conf: Config):
 		self.conf = conf
-		self.history = []
 		self.requires_move = conf.device_for_model != conf.device_for_data
 		self.saved_dir = make_saved_dir(conf.saved_dir)
 		self.train_log = partial(log_to_file, f'{self.saved_dir}/train.log')
@@ -37,22 +36,22 @@ class Trainer:
 		print('Training...')
 		# train
 		best = float('inf')
-		self.history.clear()
+		history = []
 		for epoch in range(self.conf.epochs):
-			print(f"EPOCH: {epoch + 1}")
-			self.history.append({
+			print(f"Epoch: {epoch + 1}")
+			history.append({
 				'train': self.train_epoch(epoch),
 				'validate': self.validate_epoch(epoch)
 			})
-			MAE = self.history[-1]['validate']['metrics']['MAE']
+			MAE = history[-1]['validate']['metrics']['MAE']
 			if epoch >= int(.2 * self.conf.epochs) and MAE < best:
-				torch.save(self.model, f'{self.saved_dir}/model-{MAE:.2f}.pkl')
+				torch.save(self.model.state_dict(), f'{self.saved_dir}/model-{MAE:.2f}.pkl')
 				best = MAE
-		open(f'{self.saved_dir}/history.json', 'w').write(json.dumps(self.history))
+		open(f'{self.saved_dir}/history.json', 'w').write(json.dumps(history))
 
 	def train_epoch(self, epoch):
 		total_loss, count = .0, 0
-		with tqdm(total=len(self.train_loader), desc='TRAIN', unit='batches') as bar:
+		with tqdm(total=len(self.train_loader), desc=f'Train', unit='batches') as bar:
 			for b, (x, h, d, y) in enumerate(self.train_loader):
 				if self.requires_move:
 					x, h, d, y = [t.to(self.conf.device_for_model) for t in [x, h, d, y]]
@@ -76,7 +75,7 @@ class Trainer:
 		metrics = Metrics()
 		total_loss, count = .0, 0
 		self.model.eval()
-		with tqdm(total=len(self.validate_loader), desc='VALIDATE', unit='batches') as bar:
+		with tqdm(total=len(self.validate_loader), desc='Validate', unit='batches') as bar:
 			for b, (x, h, d, y) in enumerate(self.validate_loader):
 				if self.requires_move:
 					x, h, d, y = [t.to(self.conf.device_for_model) for t in [x, h, d, y]]
