@@ -56,7 +56,7 @@ class Trainer:
 
 	def train_epoch(self, epoch):
 		total_loss, count = .0, 0
-		with tqdm(total=len(self.train_loader), desc=f'Train', unit='batches') as bar:
+		with tqdm(total=len(self.train_loader), desc='Train', unit='batches') as bar:
 			for idx, batch in enumerate(self.train_loader):
 				x, h, d, y = [it.to(self.device) for it in batch] if self.requires_move else batch
 				self.optimizer.zero_grad()

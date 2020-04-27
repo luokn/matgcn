@@ -13,8 +13,7 @@ from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleLis
 class Attention(Module):
 	def __init__(self, dk, requires_value=False):
 		super(Attention, self).__init__()
-		self.sqrt_dk = math.sqrt(dk)
-		self.requires_value = requires_value
+		self.sqrt_dk, self.requires_value = math.sqrt(dk), requires_value
 		self.W1 = Parameter(torch.zeros(dk, 10), requires_grad=True)
 		self.W2 = Parameter(torch.zeros(10, dk), requires_grad=True)
 
