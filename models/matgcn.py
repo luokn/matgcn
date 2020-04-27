@@ -33,7 +33,7 @@ class GCNBlock(Module):
 	def __init__(self, in_channels, out_channels, in_timesteps, A):
 		super(GCNBlock, self).__init__()
 		self.A = A
-		self.W = Parameter(torch.zeros(in_channels, out_channels), requires_grad=True)
+		self.W = Parameter(torch.zeros(in_channels, out_channels), requires_grad=True)  # [C_i, C_o]
 		self.att = Attention(in_channels * in_timesteps, requires_value=False)
 
 	def forward(self, x: FloatTensor):
@@ -62,11 +62,11 @@ class TCNBlock(Module):
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		x_out = self.att(x.transpose(1, 3)).transpose(1, 3)
+		x_out = self.att(x.transpose(1, 3)).transpose(1, 3)  # => [B, C, N, T]
 		for conv, dilation in zip(self.convs, self.dilations):
-			x_out = conv(x_out)
-			x_out = torch.relu(x_out[..., :-dilation])
-		return x_out
+			x_out = conv(x_out)  # => [B, C, N, T + D]
+			x_out = torch.relu(x_out[..., :-dilation])  # => [B, C, N, T]
+		return x_out  # => [B, C, N, T]
 
 
 class MATGCNBlock(Module):
@@ -82,12 +82,12 @@ class MATGCNBlock(Module):
 
 	def forward(self, x: FloatTensor):
 		"""
-		:param x: [B, C_i, N, T_i]
-		:return: [B, C_o, N, T_o]
+		:param x: [B, C_i, N, T]
+		:return: [B, C_o, N, T]
 		"""
-		x_out = self.seq(x) + self.res(x)  # => [B, C_o, N, T_o]
-		x_out = x_out.relu_().transpose(1, 3)  # => [B, T_o, N, C_o]
-		return self.ln(x_out).transpose(1, 3)  # => [B, T_o, N, C_o]
+		x_out = self.seq(x) + self.res(x)  # => [B, C_o, N, T]
+		x_out = x_out.relu_().transpose(1, 3)  # => [B, T, N, T_o]
+		return self.ln(x_out).transpose(1, 3)  # => [B, C_o, N, T]
 
 
 class MATGCNLayer(Module):
