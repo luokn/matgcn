@@ -3,6 +3,7 @@
 # @Author: Luokun
 # @Email : olooook@outlook.com
 
+import json
 from dataclasses import dataclass
 
 
@@ -20,3 +21,7 @@ class Config:
 	points_per_hour: int
 	device_for_data: str = 'cpu'
 	device_for_model: str = 'cpu'
+
+
+def config(file):
+	return Config(**json.loads(open(file).read()))

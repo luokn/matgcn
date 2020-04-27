@@ -19,7 +19,7 @@ class Metrics:
 		self.AE, self.SE, self.count = .0, .0, 0
 
 	@property
-	def status(self):
+	def state_dict(self):
 		return {
 			'MAE': self.AE / self.count,
 			'RMSE': (self.SE / self.count) ** .5
