@@ -15,7 +15,7 @@ from tools.utils import log_to_file, make_saved_dir
 
 class Trainer:
 	def __init__(self, conf: Config):
-		self.conf = conf
+		self.device, self.epochs = conf.device_for_model, conf.epochs
 		self.requires_move = conf.device_for_model != conf.device_for_data
 		self.saved_dir = make_saved_dir(conf.saved_dir)
 		self.train_log = partial(log_to_file, f'{self.saved_dir}/train.log')
@@ -37,14 +37,14 @@ class Trainer:
 		# train
 		best = float('inf')
 		history = []
-		for epoch in range(self.conf.epochs):
+		for epoch in range(self.epochs):
 			print(f"Epoch: {epoch + 1}")
 			history.append({
 				'train': self.train_epoch(epoch),
 				'validate': self.validate_epoch(epoch)
 			})
 			MAE = history[-1]['validate']['metrics']['MAE']
-			if epoch >= int(.2 * self.conf.epochs) and MAE < best:
+			if epoch >= int(.2 * self.epochs) and MAE < best:
 				torch.save(self.model.state_dict(), f'{self.saved_dir}/model-{MAE:.2f}.pkl')
 				best = MAE
 		open(f'{self.saved_dir}/history.json', 'w').write(json.dumps(history))
@@ -52,9 +52,8 @@ class Trainer:
 	def train_epoch(self, epoch):
 		total_loss, count = .0, 0
 		with tqdm(total=len(self.train_loader), desc=f'Train', unit='batches') as bar:
-			for b, (x, h, d, y) in enumerate(self.train_loader):
-				if self.requires_move:
-					x, h, d, y = [t.to(self.conf.device_for_model) for t in [x, h, d, y]]
+			for idx, data in enumerate(self.train_loader):
+				x, h, d, y = [it.to(self.device) for it in data] if self.requires_move else data
 				self.optimizer.zero_grad()
 				pred = self.model(x, h, d)
 				loss = self.criterion(pred, y)
@@ -67,7 +66,7 @@ class Trainer:
 				bar.update()
 				bar.set_postfix(loss=f'{total_loss / count:.2f}')
 				# log to file
-				self.train_log(epoch=epoch, batch=b, loss=loss.item())
+				self.train_log(epoch=epoch, batch=idx, loss=loss.item())
 		return {'loss': total_loss / count}
 
 	@torch.no_grad()
@@ -76,9 +75,8 @@ class Trainer:
 		total_loss, count = .0, 0
 		self.model.eval()
 		with tqdm(total=len(self.validate_loader), desc='Validate', unit='batches') as bar:
-			for b, (x, h, d, y) in enumerate(self.validate_loader):
-				if self.requires_move:
-					x, h, d, y = [t.to(self.conf.device_for_model) for t in [x, h, d, y]]
+			for idx, data in enumerate(self.validate_loader):
+				x, h, d, y = [it.to(self.device) for it in data] if self.requires_move else data
 				pred = self.model(x, h, d)
 				loss = self.criterion(pred, y)
 				# update statistics
@@ -90,6 +88,6 @@ class Trainer:
 				bar.set_postfix(**{
 					k: f'{v:.2f}' for k, v in metrics.status.items()
 				}, loss=f'{total_loss / count:.2f}')
-				self.validate_log(epoch=epoch, batch=b, loss=loss.item(), **metrics.status)
+				self.validate_log(epoch=epoch, batch=idx, loss=loss.item(), **metrics.status)
 		self.model.train()
 		return {'loss': total_loss / count, 'metrics': metrics.status}
