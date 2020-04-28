@@ -55,7 +55,7 @@ class Trainer:
 		open(f'{self.saved_dir}/history.json', 'w').write(json.dumps(history))
 
 	def train_epoch(self, epoch):
-		total_loss, count = .0, 0
+		total_loss, ave_loss = .0, .0
 		with tqdm(total=len(self.train_loader), desc='Train', unit='batches') as bar:
 			for idx, batch in enumerate(self.train_loader):
 				x, h, d, y = [it.to(self.device) for it in batch] if self.requires_move else batch
@@ -65,19 +65,19 @@ class Trainer:
 				loss.backward()
 				self.optimizer.step()
 				# update statistics
-				count += len(pred)
 				total_loss += loss.item()
+				ave_loss = total_loss / (idx + 1)
 				# update progress bar
 				bar.update()
-				bar.set_postfix(loss=f'{total_loss / count:.2f}')
+				bar.set_postfix(loss=f'{ave_loss:.2f}')
 				# log to file
 				self.train_log(epoch=epoch, batch=idx, loss=loss.item())
-		return {'loss': total_loss / count}
+		return {'loss': ave_loss}
 
 	@torch.no_grad()
 	def validate_epoch(self, epoch):
 		metrics = Metrics()
-		total_loss, count = .0, 0
+		total_loss, ave_loss = .0, .0
 		self.model.eval()
 		with tqdm(total=len(self.validate_loader), desc='Validate', unit='batches') as bar:
 			for idx, batch in enumerate(self.validate_loader):
@@ -86,13 +86,13 @@ class Trainer:
 				loss = self.criterion(pred, y)
 				# update statistics
 				metrics.update(pred, y)
-				count += len(pred)
 				total_loss += loss.item()
+				ave_loss = total_loss / (idx + 1)
 				# update progress bar
 				bar.update()
 				bar.set_postfix(**{
 					k: f'{v:.2f}' for k, v in metrics.state_dict.items()
-				}, loss=f'{total_loss / count:.2f}')
+				}, loss=f'{ave_loss:.2f}')
 				self.validate_log(epoch=epoch, batch=idx, loss=loss.item(), **metrics.state_dict)
 		self.model.train()
-		return {'loss': total_loss / count, 'metrics': metrics.state_dict}
+		return {'loss': ave_loss, 'metrics': metrics.state_dict}
