@@ -76,9 +76,7 @@ class Trainer:
 				res = self.train_batch(batch)
 				total_loss += res['loss']
 				ave_loss = total_loss / (idx + 1)
-				bar.update(
-					postfix=f'train loss={ave_loss:.2f}'
-				)
+				bar.update(postfix=f'train loss={ave_loss:.2f}')
 				self.train_log(epoch=epoch, batch=idx, loss=res['loss'])
 		return {'loss': ave_loss}
 
