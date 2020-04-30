@@ -9,13 +9,12 @@ from functools import partial
 import torch
 from torch.nn import MSELoss
 from torch.optim import Adam
-from tqdm import tqdm
 
 from tools.config import Config
 from tools.data import load_data
 from tools.metrics import Metrics
 from tools.model import matgcn
-from tools.utils import log_to_file, make_saved_dir
+from tools.utils import log_to_file, make_saved_dir, ProgressBar
 
 
 class Trainer:
@@ -54,24 +53,33 @@ class Trainer:
 				best = MAE
 		open(f'{self.saved_dir}/history.json', 'w').write(json.dumps(history))
 
+	def train_batch(self, batch):
+		x, h, d, y = [it.to(self.device) for it in batch] if self.requires_move else batch
+		self.optimizer.zero_grad()
+		pred = self.model(x, h, d)
+		loss = self.criterion(pred, y)
+		loss.backward()
+		self.optimizer.step()
+		return {'loss': loss.item()}
+
+	def validate_batch(self, batch, metrics):
+		x, h, d, y = [it.to(self.device) for it in batch] if self.requires_move else batch
+		pred = self.model(x, h, d)
+		loss = self.criterion(pred, y)
+		metrics.update(pred, y)
+		return {'loss': loss.item(), 'metrics': metrics.state_dict}
+
 	def train_epoch(self, epoch):
 		total_loss, ave_loss = .0, .0
-		with tqdm(total=len(self.train_loader), desc='Train', unit='batches') as bar:
+		with ProgressBar(total=len(self.train_loader)) as bar:
 			for idx, batch in enumerate(self.train_loader):
-				x, h, d, y = [it.to(self.device) for it in batch] if self.requires_move else batch
-				self.optimizer.zero_grad()
-				pred = self.model(x, h, d)
-				loss = self.criterion(pred, y)
-				loss.backward()
-				self.optimizer.step()
-				# update statistics
-				total_loss += loss.item()
+				res = self.train_batch(batch)
+				total_loss += res['loss']
 				ave_loss = total_loss / (idx + 1)
-				# update progress bar
-				bar.update()
-				bar.set_postfix(loss=f'{ave_loss:.2f}')
-				# log to file
-				self.train_log(epoch=epoch, batch=idx, loss=loss.item())
+				bar.update(
+					postfix=f'train loss={ave_loss:.2f}'
+				)
+				self.train_log(epoch=epoch, batch=idx, loss=res['loss'])
 		return {'loss': ave_loss}
 
 	@torch.no_grad()
@@ -79,20 +87,15 @@ class Trainer:
 		metrics = Metrics()
 		total_loss, ave_loss = .0, .0
 		self.model.eval()
-		with tqdm(total=len(self.validate_loader), desc='Validate', unit='batches') as bar:
+		with ProgressBar(total=len(self.validate_loader)) as bar:
 			for idx, batch in enumerate(self.validate_loader):
-				x, h, d, y = [it.to(self.device) for it in batch] if self.requires_move else batch
-				pred = self.model(x, h, d)
-				loss = self.criterion(pred, y)
-				# update statistics
-				metrics.update(pred, y)
-				total_loss += loss.item()
+				res = self.validate_batch(batch, metrics)
+				total_loss += res['loss']
 				ave_loss = total_loss / (idx + 1)
-				# update progress bar
-				bar.update()
-				bar.set_postfix(**{
-					k: f'{v:.2f}' for k, v in metrics.state_dict.items()
-				}, loss=f'{ave_loss:.2f}')
-				self.validate_log(epoch=epoch, batch=idx, loss=loss.item(), **metrics.state_dict)
+				MAE, RMSE = res['metrics']['MAE'], res['metrics']['RMSE']
+				bar.update(
+					postfix=f'validate loss={ave_loss:.2f} MAE={MAE:.2f} RMSE={RMSE:.2f}'
+				)
+				self.validate_log(epoch=epoch, batch=idx, loss=res['loss'], MAE=MAE, RMSE=RMSE)
 		self.model.train()
 		return {'loss': ave_loss, 'metrics': metrics.state_dict}
