@@ -19,16 +19,16 @@ class ProgressBar:
 	def update(self, postfix='', n=1):
 		self.count += n
 		circles = self.n_circles * self.count // self.total
+		tm_delta = timedelta(seconds=int(time() - self.start_time))
 		if circles < self.n_circles:
 			progress = circles * '●' + (self.n_circles - circles) * '○'
+			line = f'\r[{progress}] [{self.count}/{self.total} {tm_delta}] {postfix}'
 		else:
-			progress = self.n_circles * '●'
-		tm_delta = timedelta(seconds=int(time() - self.start_time))
-		line = f'\r[{progress}] [{self.count}/{self.total} {tm_delta}] {postfix}'
+			line = f'\r[{self.count}/{self.total} {tm_delta}] {postfix}'
 		if self.last_line_len > len(line):
 			line = line.ljust(self.last_line_len)
-		self.last_line_len = len(line)
 		print(line, end='')
+		self.last_line_len = len(line)
 
 	def close(self):
 		self.count = 0
