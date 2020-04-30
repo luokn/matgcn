@@ -69,6 +69,7 @@ class Trainer:
 		return loss.item()
 
 	def train_epoch(self, epoch):
+		self.model.train()
 		total_loss, average_loss = .0, .0
 		with ProgressBar(total=len(self.train_loader)) as bar:
 			for idx, batch in enumerate(self.train_loader):
@@ -93,5 +94,4 @@ class Trainer:
 					postfix=f'[Validate] loss={average_loss:.2f} MAE={metrics.MAE:.2f} RMSE={metrics.RMSE:.2f}'
 				)
 				self.validate_log(epoch=epoch, batch=idx, loss=loss, MAE=metrics.MAE, RMSE=metrics.RMSE)
-		self.model.train()
 		return average_loss, metrics
