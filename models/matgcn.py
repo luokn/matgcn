@@ -50,7 +50,6 @@ class TCNBlock(Module):
 	def __init__(self, in_channels, n_nodes, dilations):
 		super(TCNBlock, self).__init__()
 		self.att = Attention(n_nodes * in_channels, requires_value=True)
-		self.dilations = dilations
 		self.convs = ModuleList([
 			Conv2d(in_channels, in_channels, [1, 2], padding=[0, dilation], dilation=[1, dilation])
 			for dilation in dilations
@@ -62,9 +61,9 @@ class TCNBlock(Module):
 		:return: [B, C, N, T]
 		"""
 		x_out = self.att(x.transpose(1, 3)).transpose(1, 3)  # => [B, C, N, T]
-		for conv, dilation in zip(self.convs, self.dilations):
-			x_out = conv(x_out)  # => [B, C, N, T + D]
-			x_out = torch.relu(x_out[..., :-dilation])  # => [B, C, N, T]
+		for conv in self.convs:
+			x_out = conv(x_out)  # => [B, C, N, T + P]
+			x_out = torch.relu(x_out[..., conv.padding[1]:])  # => [B, C, N, T]
 		return x_out  # => [B, C, N, T]
 
 
