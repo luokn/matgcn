@@ -6,59 +6,47 @@
 import torch
 from torch import FloatTensor, LongTensor
 from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleList, Embedding
-from torch.nn.init import xavier_normal_
 
 
 class CAttention(Module):
 	def __init__(self, n_nodes, n_timesteps):
 		super(CAttention, self).__init__()
-		self.v = Parameter(torch.zeros(1, n_nodes), requires_grad=True)
+		self.v = Parameter(torch.zeros(n_nodes), requires_grad=True)
 		self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
-		self.reset_parameters()
 
 	def forward(self, x: FloatTensor):
 		"""
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		K = Q = x.transpose(2, 3) @ self.v.squeeze()  # [B, N, T]
+		K = Q = x.transpose(2, 3) @ self.v  # [B, N, T]
 		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, C, C]
 		return (A @ x.reshape(*x.shape[:2], -1)).view_as(x)  # [B, C, N, T]
-
-	def reset_parameters(self):
-		xavier_normal_(self.v)
-		xavier_normal_(self.W)
 
 
 class SAttention(Module):
 	def __init__(self, n_channels, n_timesteps, A):
 		super(SAttention, self).__init__()
 		self.A = A
-		self.c = Parameter(torch.zeros(1, n_channels), requires_grad=True)
+		self.c = Parameter(torch.zeros(n_channels), requires_grad=True)
 		self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
-		self.reset_parameters()
 
 	def forward(self, x: FloatTensor):
 		"""
 		:param x: [B, C, N, T]
 		:return: [B, N, N]
 		"""
-		K = Q = x.permute(0, 2, 3, 1) @ self.c.squeeze()  # [B, N, T]
+		K = Q = x.permute(0, 2, 3, 1) @ self.c  # [B, N, T]
 		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, N, N]
 		return self.A * A  # [B, N, N]
-
-	def reset_parameters(self):
-		xavier_normal_(self.c)
-		xavier_normal_(self.W)
 
 
 class TAttention(Module):
 	def __init__(self, n_channels, n_nodes):
 		super(TAttention, self).__init__()
-		self.c = Parameter(torch.zeros(1, n_channels), requires_grad=True)
+		self.c = Parameter(torch.zeros(n_channels), requires_grad=True)
 		self.W1 = Parameter(torch.zeros(10, n_nodes), requires_grad=True)
 		self.W2 = Parameter(torch.zeros(10, n_nodes), requires_grad=True)
-		self.reset_parameters()
 
 	def forward(self, x: FloatTensor):
 		"""
@@ -66,15 +54,10 @@ class TAttention(Module):
 		:return: [B, C, N, T]
 		"""
 		x = x.transpose(1, 3)
-		K = Q = x @ self.c.squeeze()
+		K = Q = x @ self.c
 		A = torch.softmax((K @ self.W1.T) @ (Q @ self.W2.T).transpose(1, 2), dim=-1)
 		x_out = (A @ x.reshape(*x.shape[:2], -1)).view_as(x)
 		return x_out.transpose(1, 3)
-
-	def reset_parameters(self):
-		xavier_normal_(self.c)
-		xavier_normal_(self.W1)
-		xavier_normal_(self.W2)
 
 
 class GCNBlock(Module):
@@ -83,7 +66,6 @@ class GCNBlock(Module):
 		self.A = A
 		self.W = Parameter(torch.zeros(out_channels, in_channels), requires_grad=True)  # [C_o, C_i]
 		self.att = SAttention(n_channels=in_channels, n_timesteps=n_timesteps, A=A)
-		self.reset_parameters()
 
 	def forward(self, x: FloatTensor):
 		"""
@@ -94,9 +76,6 @@ class GCNBlock(Module):
 		# [B, N, N] @ [T, B, N, C_i] @ [C_i, C_o]
 		x_out = A @ x.permute(3, 0, 2, 1) @ self.W.T  # => [T, B, N, C_o]
 		return x_out.permute(1, 3, 2, 0)  # => [B, C_o, N, T]
-
-	def reset_parameters(self):
-		torch.nn.init.xavier_normal_(self.W)
 
 
 class TCNBlock(Module):

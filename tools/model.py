@@ -1,3 +1,5 @@
+from torch.nn.init import xavier_normal_, uniform_
+
 from models.matgcn import MATGCN
 from tools.utils import norm_adj_matrix
 
@@ -22,4 +24,9 @@ def matgcn(adj_file, n_nodes, out_timesteps, points_per_hour, device):
 		]
 	}] * 5
 	model = MATGCN(layers=layers, **mixin).to(device)
+	for param in model.parameters():
+		if param.ndim >= 2:
+			xavier_normal_(param)
+		else:
+			uniform_(param)
 	return model
