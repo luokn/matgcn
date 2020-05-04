@@ -72,10 +72,10 @@ class GCNBlock(Module):
 		:param x: [B, C_i, N, T]
 		:return: [B, C_o, N, T]
 		"""
-		A = self.att(x)  # => [B, N, N]
+		A = self.att(x)  # [B, N, N]
 		# [B, N, N] @ [T, B, N, C_i] @ [C_i, C_o]
-		x_out = A @ x.permute(3, 0, 2, 1) @ self.W.T  # => [T, B, N, C_o]
-		return x_out.permute(1, 3, 2, 0)  # => [B, C_o, N, T]
+		x_out = A @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
+		return x_out.permute(1, 3, 2, 0)  # [B, C_o, N, T]
 
 
 class TCNBlock(Module):
@@ -92,11 +92,11 @@ class TCNBlock(Module):
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		x_out = self.att(x)  # => [B, C, N, T]
+		x_out = self.att(x)  # [B, C, N, T]
 		for conv in self.convs:
-			x_out = conv(x_out)  # => [B, C, N, T + P]
-			x_out = torch.relu(x_out[..., :-conv.padding[1]])  # => [B, C, N, T]
-		return x_out  # => [B, C, N, T]
+			x_out = conv(x_out)  # [B, C, N, T + P]
+			x_out = torch.relu(x_out[..., :-conv.padding[1]])  # [B, C, N, T]
+		return x_out  # [B, C, N, T]
 
 
 class MATGCNBlock(Module):
@@ -115,9 +115,9 @@ class MATGCNBlock(Module):
 		:param x: [B, C_i, N, T]
 		:return: [B, C_o, N, T]
 		"""
-		x_out = self.seq(x) + self.res(x)  # => [B, C_o, N, T]
-		x_out = x_out.relu_().transpose(1, 3)  # => [B, T, N, T_o]
-		return self.ln(x_out).transpose(1, 3)  # => [B, C_o, N, T]
+		x_out = self.seq(x) + self.res(x)  # [B, C_o, N, T]
+		x_out = x_out.relu_().transpose(1, 3)  # [B, T, N, T_o]
+		return self.ln(x_out).transpose(1, 3)  # [B, C_o, N, T]
 
 
 class MATGCNLayer(Module):
@@ -131,9 +131,9 @@ class MATGCNLayer(Module):
 		:param x: [B, C_i, N, T_i]
 		:return: [B, C_o, N, T_o]
 		"""
-		x = self.blocks(x)  # => [B, C_o, N, T_o]
-		x = self.fc(x.transpose(1, 3))  # => [B, T_o, N, 1]
-		return x[..., 0].transpose(1, 2)  # => [B, N, T_o]
+		x = self.blocks(x)  # [B, C_o, N, T_o]
+		x = self.fc(x.transpose(1, 3))  # [B, T_o, N, 1]
+		return x[..., 0].transpose(1, 2)  # [B, N, T_o]
 
 
 class MATGCN(Module):
@@ -151,6 +151,6 @@ class MATGCN(Module):
 		:param D: [B]
 		:return: [B, N, T_o]
 		"""
-		G = self.h_embed(H) + self.d_embed(D)  # => [(B * L * N * T_o)]
-		G = G.view(len(G), len(self.layers), self.n_nodes, -1)  # => [B * L * N * T_o]
+		G = self.h_embed(H) + self.d_embed(D)  # [(B * L * N * T_o)]
+		G = G.view(len(G), len(self.layers), self.n_nodes, -1)  # [B * L * N * T_o]
 		return sum(map(lambda layer, x, gate: layer(x) * gate, self.layers, X.unbind(1), G.unbind(1)))
