@@ -53,11 +53,11 @@ class TAttention(Module):
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		x = x.transpose(1, 3)
-		K = Q = x @ self.c
-		A = torch.softmax((K @ self.W1.T) @ (Q @ self.W2.T).transpose(1, 2), dim=-1)
-		x_out = (A @ x.reshape(*x.shape[:2], -1)).view_as(x)
-		return x_out.transpose(1, 3)
+		x = x.transpose(1, 3)  # [B, T, N, T]
+		K = Q = x @ self.c  # [B, T, N]
+		A = torch.softmax((K @ self.W1.T) @ (Q @ self.W2.T).transpose(1, 2), dim=-1)  # [B, T, T]
+		x_out = (A @ x.reshape(*x.shape[:2], -1)).view_as(x)  # [B, T, N, T]
+		return x_out.transpose(1, 3)  # [B, C, N, T]
 
 
 class GCNBlock(Module):
