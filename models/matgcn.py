@@ -102,7 +102,7 @@ class MATGCNBlock(Module):
 	def __init__(self, in_channels, out_channels, in_timesteps, tcn_dilations, n_nodes, **kwargs):
 		super(MATGCNBlock, self).__init__()
 		self.seq = Sequential(
-			LayerNorm([n_nodes, in_timesteps]),
+			LayerNorm([in_timesteps]),
 			CAttention(n_nodes, in_timesteps),
 			GCNBlock(in_channels, out_channels, in_timesteps, kwargs['A']),
 			TCNBlock(out_channels, n_nodes, tcn_dilations),
