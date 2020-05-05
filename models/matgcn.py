@@ -19,9 +19,9 @@ class CAttention(Module):
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		K = Q = x.transpose(2, 3) @ self.alpha  # [B, C, T]
+		K = Q = torch.einsum('bcit,i->bct', x, self.alpha)  # [B, C, T]
 		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, C, C]
-		return (A @ x.reshape(*x.shape[:2], -1)).view_as(x)  # [B, C, N, T]
+		return torch.einsum('bij,bjnt->bint', A, x)  # [B, C, N, T]
 
 
 class SAttention(Module):
@@ -36,7 +36,7 @@ class SAttention(Module):
 		:param x: [B, C, N, T]
 		:return: [B, N, N]
 		"""
-		K = Q = x.permute(0, 2, 3, 1) @ self.alpha  # [B, N, T]
+		K = Q = torch.einsum('bcnt,c->bnt', x, self.alpha)  # [B, N, T]
 		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, N, N]
 		return self.A * A  # [B, N, N]
 
@@ -53,10 +53,9 @@ class TAttention(Module):
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		x = x.transpose(1, 3)  # [B, T, N, C]
-		K = Q = x @ self.alpha  # [B, T, N]
+		K = Q = torch.einsum('bcnt,c->btn', x, self.alpha)  # [B, T, N]
 		A = torch.softmax((K @ self.W1.T) @ (Q @ self.W2.T).transpose(1, 2), dim=-1)  # [B, T, T]
-		return (A @ x.reshape(*x.shape[:2], -1)).view_as(x).transpose(1, 3)  # [B, C, N, T]
+		return torch.einsum('bij,bcnj->bcni', A, x)  # [B, C, N, T]
 
 
 class GCNBlock(Module):
