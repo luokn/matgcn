@@ -5,7 +5,7 @@
 
 import torch
 from torch import FloatTensor, LongTensor
-from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleList, Embedding
+from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleList, Embedding, BatchNorm2d
 
 
 class CAttention(Module):
@@ -102,6 +102,7 @@ class MATGCNBlock(Module):
 	def __init__(self, in_channels, out_channels, in_timesteps, tcn_dilations, n_nodes, **kwargs):
 		super(MATGCNBlock, self).__init__()
 		self.seq = Sequential(
+			BatchNorm2d(in_channels),
 			CAttention(n_nodes, in_timesteps),
 			GCNBlock(in_channels, out_channels, in_timesteps, kwargs['A']),
 			TCNBlock(out_channels, n_nodes, tcn_dilations),
@@ -138,10 +139,10 @@ class MATGCNLayer(Module):
 class MATGCN(Module):
 	def __init__(self, layers, **kwargs):
 		super(MATGCN, self).__init__()
-		self.n_nodes = kwargs['n_nodes']
+		self.n_nodes, out_timesteps = kwargs['n_nodes'], kwargs['out_timesteps']
 		self.layers = ModuleList([MATGCNLayer(**layer, **kwargs) for layer in layers])
-		self.h_embed = Embedding(24, len(layers) * self.n_nodes * kwargs['out_timesteps'])
-		self.d_embed = Embedding(7, len(layers) * self.n_nodes * kwargs['out_timesteps'])
+		self.d_embed = Embedding(7, len(layers) * self.n_nodes * out_timesteps)
+		self.h_embed = Embedding(24, len(layers) * self.n_nodes * out_timesteps)
 
 	def forward(self, X: FloatTensor, H: LongTensor, D: LongTensor):
 		"""
