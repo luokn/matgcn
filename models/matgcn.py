@@ -11,15 +11,15 @@ from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleLis
 class CAttention(Module):
 	def __init__(self, n_nodes, n_timesteps):
 		super(CAttention, self).__init__()
-		self.v = Parameter(torch.zeros(n_nodes), requires_grad=True)
 		self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
+		self.alpha = Parameter(torch.zeros(n_nodes), requires_grad=True)
 
 	def forward(self, x: FloatTensor):
 		"""
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		K = Q = x.transpose(2, 3) @ self.v  # [B, N, T]
+		K = Q = x.transpose(2, 3) @ self.alpha  # [B, C, T]
 		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, C, C]
 		return (A @ x.reshape(*x.shape[:2], -1)).view_as(x)  # [B, C, N, T]
 
@@ -28,15 +28,15 @@ class SAttention(Module):
 	def __init__(self, n_channels, n_timesteps, A):
 		super(SAttention, self).__init__()
 		self.A = A
-		self.c = Parameter(torch.zeros(n_channels), requires_grad=True)
 		self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
+		self.alpha = Parameter(torch.zeros(n_channels), requires_grad=True)
 
 	def forward(self, x: FloatTensor):
 		"""
 		:param x: [B, C, N, T]
 		:return: [B, N, N]
 		"""
-		K = Q = x.permute(0, 2, 3, 1) @ self.c  # [B, N, T]
+		K = Q = x.permute(0, 2, 3, 1) @ self.alpha  # [B, N, T]
 		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, N, N]
 		return self.A * A  # [B, N, N]
 
@@ -44,20 +44,19 @@ class SAttention(Module):
 class TAttention(Module):
 	def __init__(self, n_channels, n_nodes):
 		super(TAttention, self).__init__()
-		self.c = Parameter(torch.zeros(n_channels), requires_grad=True)
 		self.W1 = Parameter(torch.zeros(10, n_nodes), requires_grad=True)
 		self.W2 = Parameter(torch.zeros(10, n_nodes), requires_grad=True)
+		self.alpha = Parameter(torch.zeros(n_channels), requires_grad=True)
 
 	def forward(self, x: FloatTensor):
 		"""
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		x = x.transpose(1, 3)  # [B, T, N, T]
-		K = Q = x @ self.c  # [B, T, N]
+		x = x.transpose(1, 3)  # [B, T, N, C]
+		K = Q = x @ self.alpha  # [B, T, N]
 		A = torch.softmax((K @ self.W1.T) @ (Q @ self.W2.T).transpose(1, 2), dim=-1)  # [B, T, T]
-		x_out = (A @ x.reshape(*x.shape[:2], -1)).view_as(x)  # [B, T, N, T]
-		return x_out.transpose(1, 3)  # [B, C, N, T]
+		return (A @ x.reshape(*x.shape[:2], -1)).view_as(x).transpose(1, 3)  # [B, C, N, T]
 
 
 class GCNBlock(Module):
