@@ -101,26 +101,26 @@ class MATGCNBlock(Module):
 	def __init__(self, in_channels, out_channels, in_timesteps, tcn_dilations, n_nodes, **kwargs):
 		super(MATGCNBlock, self).__init__()
 		self.seq = Sequential(
+			LayerNorm([in_timesteps]),
 			CAttention(n_nodes, in_timesteps),
 			GCNBlock(in_channels, out_channels, in_timesteps, kwargs['A']),
 			TCNBlock(out_channels, n_nodes, tcn_dilations),
 		)
 		self.res = Conv2d(in_channels, out_channels, kernel_size=1)
-		self.ln = LayerNorm([in_timesteps])
 
 	def forward(self, x: FloatTensor):
 		"""
 		:param x: [B, C_i, N, T]
 		:return: [B, C_o, N, T]
 		"""
-		x_out = self.seq(x) + self.res(x)  # [B, C_o, N, T]
-		return self.ln(x_out.relu_())  # [B, C_o, N, T]
+		return torch.relu(self.seq(x) + self.res(x))  # [B, C_o, N, T]
 
 
 class MATGCNLayer(Module):
 	def __init__(self, blocks, **kwargs):
 		super(MATGCNLayer, self).__init__()
 		self.blocks = Sequential(*[MATGCNBlock(**block, **kwargs) for block in blocks])
+		self.ln = LayerNorm([kwargs['in_timesteps']])
 		self.fc = Conv2d(kwargs['in_timesteps'], kwargs['out_timesteps'], [1, blocks[-1]['out_channels']])
 
 	def forward(self, x: FloatTensor):
@@ -129,6 +129,7 @@ class MATGCNLayer(Module):
 		:return: [B, C_o, N, T_o]
 		"""
 		x = self.blocks(x)  # [B, C_o, N, T_o]
+		x = self.ln(x)  # [B, C_o, N, T_o]
 		x = self.fc(x.transpose(1, 3))  # [B, T_o, N, 1]
 		return x[..., 0].transpose(1, 2)  # [B, N, T_o]
 
