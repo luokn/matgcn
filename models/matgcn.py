@@ -27,9 +27,8 @@ class CAttention(Module):
 
 
 class SAttention(Module):
-	def __init__(self, n_channels, n_timesteps, A):
+	def __init__(self, n_channels, n_timesteps):
 		super(SAttention, self).__init__()
-		self.A = A
 		self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
 		self.alpha = Parameter(torch.zeros(n_channels), requires_grad=True)
 
@@ -41,7 +40,7 @@ class SAttention(Module):
 		# k_{n,t} = q_{n,t} = x_{i,n,t} \alpha^{i}
 		K = Q = torch.einsum('bint,i->bnt', x, self.alpha)  # [B, N, T]
 		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, N, N]
-		return self.A * A  # [B, N, N]
+		return A  # [B, N, N]
 
 
 class TAttention(Module):
@@ -68,37 +67,47 @@ class GCNBlock(Module):
 		super(GCNBlock, self).__init__()
 		self.A = A
 		self.W = Parameter(torch.zeros(out_channels, in_channels), requires_grad=True)  # [C_o, C_i]
-		self.att = SAttention(n_channels=in_channels, n_timesteps=n_timesteps, A=A)
+		self.s_att = SAttention(n_channels=in_channels, n_timesteps=n_timesteps)
 
 	def forward(self, x: FloatTensor):
 		"""
 		:param x: [B, C_i, N, T]
 		:return: [B, C_o, N, T]
 		"""
+		A = self.s_att(x) * self.A  # [B, N, N]
 		# [B, N, N] @ [T, B, N, C_i] @ [C_i, C_o]
-		x_out = self.att(x) @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
+		x_out = A @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
 		return x_out.permute(1, 3, 2, 0)  # [B, C_o, N, T]
+
+
+class Chomp(Module):
+	def __init__(self, chomp_size):
+		super(Chomp, self).__init__()
+		self.chomp_size = chomp_size
+
+	def forward(self, x: FloatTensor):
+		return x[..., :-self.chomp_size]
 
 
 class TCNBlock(Module):
 	def __init__(self, in_channels, n_nodes, dilations):
 		super(TCNBlock, self).__init__()
-		self.att = TAttention(n_channels=in_channels, n_nodes=n_nodes)
-		self.convs = ModuleList([
-			Conv2d(in_channels, in_channels, [1, 2], padding=[0, dilation], dilation=[1, dilation])
-			for dilation in dilations
-		])
+		seq = [
+			TAttention(n_channels=in_channels, n_nodes=n_nodes)
+		]
+		for dilation in dilations:
+			seq += [
+				Conv2d(in_channels, in_channels, [1, 2], padding=[0, dilation], dilation=[1, dilation]),
+				Chomp(dilation)
+			]
+		self.seq = Sequential(*seq)
 
 	def forward(self, x: FloatTensor):
 		"""
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		x_out = self.att(x)  # [B, C, N, T]
-		for conv in self.convs:
-			x_out = conv(x_out)  # [B, C, N, T + P]
-			x_out = torch.relu(x_out[..., :-conv.padding[1]])  # [B, C, N, T]
-		return x_out  # [B, C, N, T]
+		return self.seq(x)  # [B, C, N, T]
 
 
 class MATGCNBlock(Module):
