@@ -75,9 +75,8 @@ class GCNBlock(Module):
 		:param x: [B, C_i, N, T]
 		:return: [B, C_o, N, T]
 		"""
-		A = self.att(x)  # [B, N, N]
 		# [B, N, N] @ [T, B, N, C_i] @ [C_i, C_o]
-		x_out = A @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
+		x_out = self.att(x) @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
 		return x_out.permute(1, 3, 2, 0)  # [B, C_o, N, T]
 
 
