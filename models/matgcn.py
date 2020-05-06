@@ -90,7 +90,7 @@ class TCNBlock(Module):
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		x_out = self.att(x)  # [B, C, N, T]
+		x_out = self.att(x)  # [B, N, N]
 		for conv in self.convs:
 			x_out = conv(x_out)  # [B, C, N, T + P]
 			x_out = torch.relu(x_out[..., :-conv.padding[1]])  # [B, C, N, T]
