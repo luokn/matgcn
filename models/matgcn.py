@@ -8,24 +8,6 @@ from torch import FloatTensor, LongTensor
 from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleList, Embedding
 
 
-class CAttention(Module):
-	def __init__(self, n_nodes, n_timesteps):
-		super(CAttention, self).__init__()
-		self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
-		self.alpha = Parameter(torch.zeros(n_nodes), requires_grad=True)
-
-	def forward(self, x: FloatTensor):
-		"""
-		:param x: [B, C, N, T]
-		:return: [B, C, N, T]
-		"""
-		# k_{c,t} = q_{c,t} = x_{c,i,t} \alpha^{i}
-		K = Q = torch.einsum('bcit,i->bct', x, self.alpha)  # [B, C, T]
-		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, C, C]
-		# y_{c,n,t} = a_{c,i} x_{i,n,t}
-		return torch.einsum('bci,bint->bcnt', A, x)  # [B, C, N, T]
-
-
 class SAttention(Module):
 	def __init__(self, n_channels, n_timesteps):
 		super(SAttention, self).__init__()
@@ -41,6 +23,24 @@ class SAttention(Module):
 		K = Q = torch.einsum('bint,i->bnt', x, self.alpha)  # [B, N, T]
 		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, N, N]
 		return A  # [B, N, N]
+
+
+class GCNBlock(Module):
+	def __init__(self, in_channels, out_channels, n_timesteps, A):
+		super(GCNBlock, self).__init__()
+		self.A = A
+		self.W = Parameter(torch.zeros(out_channels, in_channels), requires_grad=True)  # [C_o, C_i]
+		self.s_att = SAttention(n_channels=in_channels, n_timesteps=n_timesteps)
+
+	def forward(self, x: FloatTensor):
+		"""
+		:param x: [B, C_i, N, T]
+		:return: [B, C_o, N, T]
+		"""
+		A = self.s_att(x) * self.A  # [B, N, N]
+		# [B, N, N] @ [T, B, N, C_i] @ [C_i, C_o]
+		x_out = A @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
+		return x_out.permute(1, 3, 2, 0)  # [B, C_o, N, T]
 
 
 class TAttention(Module):
@@ -60,24 +60,6 @@ class TAttention(Module):
 		A = torch.softmax((K @ self.W1.T) @ (Q @ self.W2.T).transpose(1, 2), dim=-1)  # [B, T, T]
 		# y_{c,n,t} = a_{t,i} x_{c,n,i}
 		return torch.einsum('bti,bcni->bcnt', A, x)  # [B, C, N, T]
-
-
-class GCNBlock(Module):
-	def __init__(self, in_channels, out_channels, n_timesteps, A):
-		super(GCNBlock, self).__init__()
-		self.A = A
-		self.W = Parameter(torch.zeros(out_channels, in_channels), requires_grad=True)  # [C_o, C_i]
-		self.s_att = SAttention(n_channels=in_channels, n_timesteps=n_timesteps)
-
-	def forward(self, x: FloatTensor):
-		"""
-		:param x: [B, C_i, N, T]
-		:return: [B, C_o, N, T]
-		"""
-		A = self.s_att(x) * self.A  # [B, N, N]
-		# [B, N, N] @ [T, B, N, C_i] @ [C_i, C_o]
-		x_out = A @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
-		return x_out.permute(1, 3, 2, 0)  # [B, C_o, N, T]
 
 
 class Chomp(Module):
@@ -108,6 +90,24 @@ class TCNBlock(Module):
 		:return: [B, C, N, T]
 		"""
 		return self.seq(x)  # [B, C, N, T]
+
+
+class CAttention(Module):
+	def __init__(self, n_nodes, n_timesteps):
+		super(CAttention, self).__init__()
+		self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
+		self.alpha = Parameter(torch.zeros(n_nodes), requires_grad=True)
+
+	def forward(self, x: FloatTensor):
+		"""
+		:param x: [B, C, N, T]
+		:return: [B, C, N, T]
+		"""
+		# k_{c,t} = q_{c,t} = x_{c,i,t} \alpha^{i}
+		K = Q = torch.einsum('bcit,i->bct', x, self.alpha)  # [B, C, T]
+		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, C, C]
+		# y_{c,n,t} = a_{c,i} x_{i,n,t}
+		return torch.einsum('bci,bint->bcnt', A, x)  # [B, C, N, T]
 
 
 class MATGCNBlock(Module):
