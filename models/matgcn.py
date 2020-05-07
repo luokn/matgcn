@@ -21,8 +21,8 @@ class SAttention(Module):
 		"""
 		# k_{n,t} = q_{n,t} = x_{i,n,t} \alpha^{i}
 		K = Q = torch.einsum('bint,i->bnt', x, self.alpha)  # [B, N, T]
-		A = torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, N, N]
-		return A  # [B, N, N]
+		# [B, N, T] @ [T, T] @ [B, T, N]
+		return torch.softmax(K @ self.W @ Q.transpose(1, 2), dim=-1)  # [B, N, N]
 
 
 class GCNBlock(Module):
