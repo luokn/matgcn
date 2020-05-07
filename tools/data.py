@@ -30,7 +30,7 @@ def normalize_dataset(x: torch.Tensor, split):
 def load_data(data_file, batch_size, data_split, points_per_hour, device='cpu'):
 	data = torch.from_numpy(numpy.load(data_file)['data'])
 	data = data.transpose(1, 2).float().to(device)
-	X, H, D, Y = generate_datasets(data, points_per_hour, [1, 2, 3, 24, 7 * 24])
+	X, H, D, Y = generate_datasets(data, points_per_hour, [1, 2, 3, 24, 2 * 24, 7 * 24])
 	split = int(len(Y) * data_split)
 	statistics = normalize_dataset(X, split)
 	dataset1 = TensorDataset(X[:split], H[:split], D[:split], Y[:split])  # for train

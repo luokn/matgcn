@@ -85,10 +85,6 @@ class TCNBlock(Module):
 		self.seq = Sequential(*seq)
 
 	def forward(self, x: FloatTensor):
-		"""
-		:param x: [B, C, N, T]
-		:return: [B, C, N, T]
-		"""
 		return self.seq(x)  # [B, C, N, T]
 
 
