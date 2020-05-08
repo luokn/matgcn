@@ -19,7 +19,7 @@ class SAttention(Module):
 		:param x: [B, C, N, T]
 		:return: [B, N, N]
 		"""
-		# k_{n,t} = q_{n,t} = x_{i,n,t} \alpha^{i}
+		# k_{n,t} = q_{n,t} = x_{i,n,t} \alpha_{i}
 		k = q = torch.einsum('bint,i->bnt', x, self.alpha)  # [B, N, T]
 		# [B, N, T] @ [T, T] @ [B, T, N]
 		return torch.softmax(k @ self.W @ q.transpose(1, 2), dim=-1)  # [B, N, N]
@@ -55,7 +55,7 @@ class TAttention(Module):
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		# k_{t,n} = q_{t,n} = x_{i,n,t} \alpha^{i}
+		# k_{t,n} = q_{t,n} = x_{i,n,t} \alpha_{i}
 		k = q = torch.einsum('bint,i->btn', x, self.alpha)  # [B, T, N]
 		A = torch.softmax((k @ self.W1.T) @ (q @ self.W2.T).transpose(1, 2), dim=-1)  # [B, T, T]
 		# y_{c,n,t} = a_{t,i} x_{c,n,i}
@@ -103,7 +103,7 @@ class CAttention(Module):
 		:param x: [B, C, N, T]
 		:return: [B, C, N, T]
 		"""
-		# k_{c,t} = q_{c,t} = x_{c,i,t} \alpha^{i}
+		# k_{c,t} = q_{c,t} = x_{c,i,t} \alpha_{i}
 		k = q = torch.einsum('bcit,i->bct', x, self.alpha)  # [B, C, T]
 		A = torch.softmax(k @ self.W @ q.transpose(1, 2), dim=-1)  # [B, C, C]
 		# y_{c,n,t} = a_{c,i} x_{i,n,t}
