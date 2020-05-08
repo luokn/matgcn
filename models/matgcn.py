@@ -151,9 +151,9 @@ class MATGCN(Module):
 	def __init__(self, layers, **kwargs):
 		super(MATGCN, self).__init__()
 		self.n_nodes, out_timesteps = kwargs['n_nodes'], kwargs['out_timesteps']
-		self.layers = ModuleList([MATGCNLayer(**layer, **kwargs) for layer in layers])
 		self.d_embed = Embedding(7, len(layers) * self.n_nodes * out_timesteps)
 		self.h_embed = Embedding(24, len(layers) * self.n_nodes * out_timesteps)
+		self.layers = ModuleList([MATGCNLayer(**layer, **kwargs) for layer in layers])
 
 	def forward(self, X: FloatTensor, H: LongTensor, D: LongTensor):
 		"""
