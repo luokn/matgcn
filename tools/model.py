@@ -5,7 +5,7 @@ from tools.utils import norm_adj_matrix
 
 
 def matgcn(adj_file, n_nodes, out_timesteps, points_per_hour, device):
-    mixin = dict(A=norm_adj_matrix(adj_file, n_nodes, device),
+    mixin = dict(Adj=norm_adj_matrix(adj_file, n_nodes, device),
                  n_nodes=n_nodes,
                  in_timesteps=points_per_hour,
                  out_timesteps=out_timesteps)

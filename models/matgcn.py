@@ -9,9 +9,9 @@ from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleLis
 
 
 class GAttention(Module):
-    def __init__(self, n_channels, n_timesteps, A):
+    def __init__(self, n_channels, n_timesteps, Adj):
         super(GAttention, self).__init__()
-        self.Adj = A
+        self.Adj = Adj
         self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
         self.alpha = Parameter(torch.zeros(n_channels), requires_grad=True)
 
@@ -28,10 +28,10 @@ class GAttention(Module):
 
 
 class GACN(Module):
-    def __init__(self, in_channels, out_channels, n_timesteps, A):
+    def __init__(self, in_channels, out_channels, n_timesteps, Adj):
         super(GACN, self).__init__()
         self.W = Parameter(torch.zeros(out_channels, in_channels), requires_grad=True)  # [C_o, C_i]
-        self.g_att = GAttention(n_channels=in_channels, n_timesteps=n_timesteps, A=A)
+        self.g_att = GAttention(n_channels=in_channels, n_timesteps=n_timesteps, Adj=Adj)
 
     def forward(self, x: FloatTensor):
         """
@@ -57,9 +57,9 @@ class TAttention(Module):
         """
         # k_{t,n} = q_{t,n} = x_{i,n,t} \alpha_{i}
         k = q = torch.einsum('bint,i->btn', x, self.alpha)  # [B, T, N]
-        A = torch.softmax((k @ self.W1.T) @ (q @ self.W2.T).transpose(1, 2), dim=-1)  # [B, T, T]
+        Att = torch.softmax((k @ self.W1.T) @ (q @ self.W2.T).transpose(1, 2), dim=-1)  # [B, T, T]
         # y_{c,n,t} = a_{t,i} x_{c,n,i}
-        return torch.einsum('bti,bcni->bcnt', A, x)  # [B, C, N, T]
+        return torch.einsum('bti,bcni->bcnt', Att, x)  # [B, C, N, T]
 
 
 class Chomp(Module):
@@ -105,9 +105,9 @@ class CAttention(Module):
         """
         # k_{c,t} = q_{c,t} = x_{c,i,t} \alpha_{i}
         k = q = torch.einsum('bcit,i->bct', x, self.alpha)  # [B, C, T]
-        A = torch.softmax(k @ self.W @ q.transpose(1, 2), dim=-1)  # [B, C, C]
+        Att = torch.softmax(k @ self.W @ q.transpose(1, 2), dim=-1)  # [B, C, C]
         # y_{c,n,t} = a_{c,i} x_{i,n,t}
-        return torch.einsum('bci,bint->bcnt', A, x)  # [B, C, N, T]
+        return torch.einsum('bci,bint->bcnt', Att, x)  # [B, C, N, T]
 
 
 class TGACN(Module):
@@ -116,8 +116,8 @@ class TGACN(Module):
         self.seq = Sequential(
             LayerNorm([in_timesteps]),
             CAttention(n_nodes, in_timesteps),
-            GACN(in_channels, out_channels, in_timesteps, kwargs['A']),
-            TACN(out_channels, tcn_dilations, n_nodes),
+            GACN(in_channels, out_channels, in_timesteps, kwargs['Adj']),
+            TACN(out_channels, tcn_dilations, n_nodes)
         )
         self.res = Conv2d(in_channels, out_channels, kernel_size=1)
 
