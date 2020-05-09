@@ -11,7 +11,7 @@ from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleLis
 class GAttention(Module):
     def __init__(self, n_channels, n_timesteps, A):
         super(GAttention, self).__init__()
-        self.mask = 9e9 * (A - 1.0)
+        self.Adj = A
         self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
         self.alpha = Parameter(torch.zeros(n_channels), requires_grad=True)
 
@@ -23,7 +23,8 @@ class GAttention(Module):
         # k_{n,t} = q_{n,t} = x_{i,n,t} \alpha_{i}
         k = q = torch.einsum('bint,i->bnt', x, self.alpha)  # [B, N, T]
         # [B, N, T] @ [T, T] @ [B, T, N]
-        return torch.softmax(k @ self.W @ q.transpose(1, 2) + self.mask, dim=-1)  # [B, N, N]
+        Att = torch.softmax(k @ self.W @ q.transpose(1, 2), dim=-1)  # [B, N, N]
+        return Att * self.Adj
 
 
 class GACN(Module):
