@@ -9,12 +9,12 @@ from datetime import datetime
 import torch
 
 
-def norm_adj_matrix(adj_file, n_nodes, device='cpu'):
+def read_adj_matrix(adj_file, n_nodes, device='cpu'):
     """
     :param adj_file:
     :param n_nodes:
     :param device:
-    :return: \tilde{D}^{-1/2} (A + I_n) \tilde{D}^{-1/2}
+    :return: \tilde A = A + I_N
     """
     A = torch.eye(n_nodes, device=device)
     for ln in open(adj_file, 'r').readlines()[1:]:
@@ -22,8 +22,7 @@ def norm_adj_matrix(adj_file, n_nodes, device='cpu'):
         i, j = int(i), int(j)
         A[i, j] = A[j, i] = 1
 
-    D_rsqrt = torch.sum(A, dim=1).rsqrt().diag()
-    return D_rsqrt @ A @ D_rsqrt
+    return A
 
 
 def make_saved_dir(saved_dir):

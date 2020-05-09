@@ -30,7 +30,7 @@ class GCNBlock(Module):
     def __init__(self, in_channels, out_channels, n_timesteps, A):
         super(GCNBlock, self).__init__()
         self.W = Parameter(torch.zeros(out_channels, in_channels), requires_grad=True)  # [C_o, C_i]
-        self.s_att = GAttention(n_channels=in_channels, n_timesteps=n_timesteps, A=A)
+        self.g_att = GAttention(n_channels=in_channels, n_timesteps=n_timesteps, A=A)
 
     def forward(self, x: FloatTensor):
         """
@@ -38,7 +38,7 @@ class GCNBlock(Module):
         :return: [B, C_o, N, T]
         """
         # [B, N, N] @ [T, B, N, C_i] @ [C_i, C_o]
-        x_out = self.s_att(x) @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
+        x_out = self.g_att(x) @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
         return x_out.permute(1, 3, 2, 0)  # [B, C_o, N, T]
 
 
