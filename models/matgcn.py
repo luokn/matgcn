@@ -74,9 +74,7 @@ class Chomp(Module):
 class TACN(Module):
     def __init__(self, in_channels, dilations, n_nodes):
         super(TACN, self).__init__()
-        seq = [
-            TAttention(n_channels=in_channels, n_nodes=n_nodes)
-        ]
+        seq = [TAttention(n_channels=in_channels, n_nodes=n_nodes)]
         for dilation in dilations:
             seq += [
                 Conv2d(in_channels, in_channels, [1, 2], padding=[0, dilation], dilation=[1, dilation]),
