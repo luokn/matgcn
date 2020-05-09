@@ -21,7 +21,6 @@ from tools.utils import log_to_file, make_saved_dir
 class Trainer:
     def __init__(self, conf: Config):
         self.device, self.epochs = conf.device_for_model, conf.epochs
-        self.requires_move = conf.device_for_model != conf.device_for_data
         self.saved_dir = make_saved_dir(conf.saved_dir)
         self.train_log = partial(log_to_file, f'{self.saved_dir}/train.log')
         self.validate_log = partial(log_to_file, f'{self.saved_dir}/validate.log')
@@ -44,16 +43,16 @@ class Trainer:
         history = []
         for epoch in range(self.epochs):
             print(f"Epoch: {epoch + 1}")
-            train_loss = self.train_epoch(epoch)
-            validate_loss, metrics = self.validate_epoch(epoch)
+            t_loss = self.train_epoch(epoch)
+            v_loss, metrics = self.validate_epoch(epoch)
             if epoch >= int(.2 * self.epochs) and metrics.MAE < best:
                 best = metrics.MAE
                 torch.save(self.model.state_dict(), f'{self.saved_dir}/model-{best:.2f}.pkl')
-            history.append(dict(train_loss=train_loss, validate_loss=validate_loss, metrics=metrics.state_dict))
+            history.append(dict(train_loss=t_loss, validate_loss=v_loss, metrics=metrics.state_dict))
         open(f'{self.saved_dir}/history.json', 'w').write(json.dumps(history))
 
     def train_batch(self, batch):
-        x, h, d, y = [it.to(self.device) for it in batch] if self.requires_move else batch
+        x, h, d, y = (it.to(self.device) for it in batch)
         self.optimizer.zero_grad()
         pred = self.model(x, h, d)
         loss = self.criterion(pred, y)
@@ -62,7 +61,7 @@ class Trainer:
         return loss.item()
 
     def validate_batch(self, batch, metrics):
-        x, h, d, y = [it.to(self.device) for it in batch] if self.requires_move else batch
+        x, h, d, y = (it.to(self.device) for it in batch)
         pred = self.model(x, h, d)
         loss = self.criterion(pred, y)
         metrics.update(pred, y)
