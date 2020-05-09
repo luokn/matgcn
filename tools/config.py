@@ -9,19 +9,19 @@ from dataclasses import dataclass
 
 @dataclass
 class Config:
-	lr: float
-	epochs: int
-	batch_size: int
-	data_split: float
-	adj_file: str
-	data_file: str
-	saved_dir: str
-	n_nodes: int
-	out_timesteps: int
-	points_per_hour: int
-	device_for_data: str = 'cpu'
-	device_for_model: str = 'cpu'
+    lr: float
+    epochs: int
+    batch_size: int
+    data_split: float
+    adj_file: str
+    data_file: str
+    saved_dir: str
+    n_nodes: int
+    out_timesteps: int
+    points_per_hour: int
+    device_for_data: str = 'cpu'
+    device_for_model: str = 'cpu'
 
 
 def config(file):
-	return Config(**json.loads(open(file).read()))
+    return Config(**json.loads(open(file).read()))

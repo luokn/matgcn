@@ -9,5 +9,5 @@ from tools.config import config
 from tools.trainer import Trainer
 
 if __name__ == '__main__':
-	assert len(sys.argv) >= 2
-	Trainer(config(sys.argv[1])).fit()
+    assert len(sys.argv) >= 2
+    Trainer(config(sys.argv[1])).fit()
