@@ -8,9 +8,10 @@ from torch import FloatTensor, LongTensor
 from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleList, Embedding
 
 
-class SAttention(Module):
-    def __init__(self, n_channels, n_timesteps):
-        super(SAttention, self).__init__()
+class GAttention(Module):
+    def __init__(self, n_channels, n_timesteps, A):
+        super(GAttention, self).__init__()
+        self.mask = -9e9 * (1 - A)
         self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
         self.alpha = Parameter(torch.zeros(n_channels), requires_grad=True)
 
@@ -22,24 +23,22 @@ class SAttention(Module):
         # k_{n,t} = q_{n,t} = x_{i,n,t} \alpha_{i}
         k = q = torch.einsum('bint,i->bnt', x, self.alpha)  # [B, N, T]
         # [B, N, T] @ [T, T] @ [B, T, N]
-        return torch.softmax(k @ self.W @ q.transpose(1, 2), dim=-1)  # [B, N, N]
+        return torch.softmax(k @ self.W @ q.transpose(1, 2) + self.mask, dim=-1)  # [B, N, N]
 
 
 class GCNBlock(Module):
     def __init__(self, in_channels, out_channels, n_timesteps, A):
         super(GCNBlock, self).__init__()
-        self.A = A
         self.W = Parameter(torch.zeros(out_channels, in_channels), requires_grad=True)  # [C_o, C_i]
-        self.s_att = SAttention(n_channels=in_channels, n_timesteps=n_timesteps)
+        self.s_att = GAttention(n_channels=in_channels, n_timesteps=n_timesteps, A=A)
 
     def forward(self, x: FloatTensor):
         """
         :param x: [B, C_i, N, T]
         :return: [B, C_o, N, T]
         """
-        A_att = self.A * self.s_att(x)  # [B, N, N]
         # [B, N, N] @ [T, B, N, C_i] @ [C_i, C_o]
-        x_out = A_att @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
+        x_out = self.s_att(x) @ x.permute(3, 0, 2, 1) @ self.W.T  # [T, B, N, C_o]
         return x_out.permute(1, 3, 2, 0)  # [B, C_o, N, T]
 
 
