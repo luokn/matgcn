@@ -11,7 +11,7 @@ from torch.nn import Conv2d, LayerNorm, Module, Parameter, Sequential, ModuleLis
 class GAttention(Module):
     def __init__(self, n_channels, n_timesteps, A):
         super(GAttention, self).__init__()
-        self.mask = -9e9 * (1 - A)
+        self.mask = 9e9 * (A - 1.0)
         self.W = Parameter(torch.zeros(n_timesteps, n_timesteps), requires_grad=True)
         self.alpha = Parameter(torch.zeros(n_channels), requires_grad=True)
 
@@ -26,9 +26,9 @@ class GAttention(Module):
         return torch.softmax(k @ self.W @ q.transpose(1, 2) + self.mask, dim=-1)  # [B, N, N]
 
 
-class GCNBlock(Module):
+class GACN(Module):
     def __init__(self, in_channels, out_channels, n_timesteps, A):
-        super(GCNBlock, self).__init__()
+        super(GACN, self).__init__()
         self.W = Parameter(torch.zeros(out_channels, in_channels), requires_grad=True)  # [C_o, C_i]
         self.g_att = GAttention(n_channels=in_channels, n_timesteps=n_timesteps, A=A)
 
@@ -70,9 +70,9 @@ class Chomp(Module):
         return x[..., :-self.chomp_size]
 
 
-class TCNBlock(Module):
-    def __init__(self, in_channels, n_nodes, dilations):
-        super(TCNBlock, self).__init__()
+class TACN(Module):
+    def __init__(self, in_channels, dilations, n_nodes):
+        super(TACN, self).__init__()
         seq = [
             TAttention(n_channels=in_channels, n_nodes=n_nodes)
         ]
@@ -109,14 +109,14 @@ class CAttention(Module):
         return torch.einsum('bci,bint->bcnt', A, x)  # [B, C, N, T]
 
 
-class MATGCNBlock(Module):
+class TGACN(Module):
     def __init__(self, in_channels, out_channels, in_timesteps, tcn_dilations, n_nodes, **kwargs):
-        super(MATGCNBlock, self).__init__()
+        super(TGACN, self).__init__()
         self.seq = Sequential(
             LayerNorm([in_timesteps]),
             CAttention(n_nodes, in_timesteps),
-            GCNBlock(in_channels, out_channels, in_timesteps, kwargs['A']),
-            TCNBlock(out_channels, n_nodes, tcn_dilations),
+            GACN(in_channels, out_channels, in_timesteps, kwargs['A']),
+            TACN(out_channels, tcn_dilations, n_nodes),
         )
         self.res = Conv2d(in_channels, out_channels, kernel_size=1)
 
@@ -132,7 +132,7 @@ class MATGCNLayer(Module):
     def __init__(self, blocks, **kwargs):
         super(MATGCNLayer, self).__init__()
         self.seq = Sequential(*[
-            MATGCNBlock(**block, **kwargs) for block in blocks
+            TGACN(**block, **kwargs) for block in blocks
         ], LayerNorm([kwargs['in_timesteps']]))
         self.fc = Conv2d(kwargs['in_timesteps'], kwargs['out_timesteps'], [1, blocks[-1]['out_channels']])
 
