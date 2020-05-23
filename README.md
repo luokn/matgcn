@@ -2,4 +2,4 @@
 
 ### MATGCN: Multi-Attention Temporal Graph Convolution Network for Traffic Flow Forecasting
 
-
+![MATGCN](./images/MATGCN.png)
