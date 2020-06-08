@@ -14,7 +14,6 @@ class ProgressBar:
         self.n_circles = n_circles
         self.start_time = time()
         self.last_line_len = -1
-        self.total_str_len = len(str(total))
 
     def update(self, postfix='', n=1):
         self.count += n
