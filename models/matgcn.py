@@ -162,4 +162,8 @@ class MATGCN(Module):
         """
         G = self.h_embed(H) + self.d_embed(D)  # [(B * L * N * T_o)]
         G = G.view(len(G), len(self.layers), self.n_nodes, -1)  # [B * L * N * T_o]
-        return sum(map(lambda layer, x, gate: layer(x) * gate, self.layers, X.unbind(1), G.unbind(1)))
+        return sum(map(self.gate_fusion, self.layers, X.unbind(1), G.unbind(1)))
+
+    @staticmethod
+    def gate_fusion(layer, x, gate):
+        return layer(x) * gate
