@@ -10,11 +10,9 @@ import torch
 
 
 def norm_adj_matrix(adj_file, n_nodes, device='cpu'):
-    """
-    :param adj_file:
-    :param n_nodes:
-    :param device:
-    :return: \tilde{D}^{-1/2} (A + I_n) \tilde{D}^{-1/2}
+    r"""
+    .. math:: 
+        \tilde A = \tilde{D}^{-1/2} (A + I_n) \tilde{D}^{-1/2}
     """
     A = torch.eye(n_nodes, device=device)
     for ln in open(adj_file, 'r').readlines()[1:]:
