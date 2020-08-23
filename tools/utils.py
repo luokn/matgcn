@@ -20,7 +20,7 @@ def norm_adj_matrix(adj_file, n_nodes, device='cpu'):
         i, j = int(i), int(j)
         A[i, j] = A[j, i] = 1
 
-    D_rsqrt = torch.sum(A, dim=1).rsqrt().diag()
+    D_rsqrt = A.sum(dim=1).rsqrt().diag()
     return D_rsqrt @ A @ D_rsqrt
 
 
