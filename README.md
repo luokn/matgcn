@@ -6,3 +6,20 @@
 
 ### 实验效果
 ![Result](./images/result.png)
+
+### 实验数据集
+[Google Drive](https://drive.google.com/drive/folders/1uOPQRiYGqKTVxI6zJkvmYuxDln-MXV8g?usp=sharing)
+
+### 运行
+#### DEBUG:
+```
+python3 main.py config/debug.json 
+```
+#### PEMS04:
+```
+python3 main.py config/pems04.json 
+```
+#### PEMS08:
+```
+python3 main.py config/pems08.json 
+```
